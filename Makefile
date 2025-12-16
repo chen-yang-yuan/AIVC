@@ -64,7 +64,7 @@ data-push-Xenium:
 	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
 	@set -e; \
 	if ls "$(LOCAL_DATA)"/Xenium* >/dev/null 2>&1; then \
-	  rsync $(RSYNC_FAST) "$(LOCAL_DATA)"/Xenium*/ \
+	  rsync $(RSYNC_FAST) "$(LOCAL_DATA)"/Xenium* \
 	    $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/ ; \
 	else \
 	  echo "⚠️  No Xenium* folders found under $(LOCAL_DATA). Nothing to sync."; \
@@ -85,15 +85,21 @@ out-pull:
 	  "$(LOCAL_OUT)"/
 
 # Optional: preview what would transfer (no changes)
-data-push-dry:
+data-push-Xenium-dry:
 	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
 	@set -e; \
 	if ls "$(LOCAL_DATA)"/Xenium* >/dev/null 2>&1; then \
-	  rsync $(RSYNC_FAST) --dry-run "$(LOCAL_DATA)"/Xenium*/ \
+	  rsync $(RSYNC_FAST) --dry-run "$(LOCAL_DATA)"/Xenium* \
 	    $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/ ; \
 	else \
 	  echo "⚠️  No Xenium* folders found under $(LOCAL_DATA). Nothing to sync."; \
 	fi
+
+data-push-dry:
+	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
+	rsync $(RSYNC_FAST) --dry-run \
+	  "$(LOCAL_DATA)"/ \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/
 
 out-pull-dry:
 	@mkdir -p "$(LOCAL_OUT)"
