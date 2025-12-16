@@ -4,16 +4,17 @@
 
 .DEFAULT_GOAL := push
 
-.PHONY: push status log data-push data-push-all out-pull data-push-dry out-pull-dry check-branch
-
-# Git settings
-BRANCH := main
-REMOTE := origin
-TIMESTAMP := $(shell date "+%Y-%m-%d %H:%M:%S")
+.PHONY: push status log check-branch \
+        data-push-Xenium data-push out-pull data-push-dry out-pull-dry \
+        env-create env-update env-check
 
 # ----------------------------
 # Git automation
 # ----------------------------
+BRANCH := main
+REMOTE := origin
+TIMESTAMP := $(shell date "+%Y-%m-%d %H:%M:%S")
+
 check-branch:
 	@CURRENT=$$(git branch --show-current); \
 	if [ "$$CURRENT" != "$(BRANCH)" ]; then \
@@ -24,17 +25,13 @@ push: check-branch
 	@echo "🔍 Checking git status..."
 	@git rev-parse --is-inside-work-tree >/dev/null 2>&1 || \
 	  (echo "❌ Not a git repository" && exit 1)
-
 	@echo "📌 Staging changes..."
 	@git add -A
-
 	@echo "📝 Committing changes..."
 	@git diff --cached --quiet || \
 	  git commit -m "Auto-commit: $(TIMESTAMP)"
-
 	@echo "🚀 Pushing to $(REMOTE)/$(BRANCH)..."
 	@git push $(REMOTE) $(BRANCH)
-
 	@echo "✅ Done."
 
 status:
@@ -49,9 +46,10 @@ log:
 
 HGCC_USER := cyuan36
 HGCC_HOST := hgcc.emory.edu
-HGCC_BASE := $(HOME)/hulab/projects/AIVC
 
+HGCC_BASE := $(HOME)/hulab/projects/AIVC
 LOCAL_BASE := $(HOME)/Dropbox/AIVC
+
 LOCAL_DATA := $(LOCAL_BASE)/data
 LOCAL_OUT  := $(LOCAL_BASE)/output
 
@@ -61,18 +59,32 @@ REMOTE_OUT  := $(HGCC_BASE)/output
 RSYNC_COMMON := -avh --progress
 RSYNC_FAST := $(RSYNC_COMMON) --partial --inplace
 
+# Push only Xenium* subfolders from local data -> HGCC
+data-push-Xenium:
+	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
+	@set -e; \
+	if ls "$(LOCAL_DATA)"/Xenium* >/dev/null 2>&1; then \
+	  rsync $(RSYNC_FAST) "$(LOCAL_DATA)"/Xenium*/ \
+	    $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/ ; \
+	else \
+	  echo "⚠️  No Xenium* folders found under $(LOCAL_DATA). Nothing to sync."; \
+	fi
+
+# Push ALL local data -> HGCC (use with care)
 data-push:
 	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
 	rsync $(RSYNC_FAST) \
 	  "$(LOCAL_DATA)"/ \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/
 
+# Pull HGCC output -> local output
 out-pull:
 	@mkdir -p "$(LOCAL_OUT)"
 	rsync $(RSYNC_FAST) \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
 
+# Optional: preview what would transfer (no changes)
 data-push-dry:
 	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
 	@set -e; \
@@ -88,3 +100,19 @@ out-pull-dry:
 	rsync $(RSYNC_FAST) --dry-run \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
+
+# ============================
+# Conda environment helpers
+# ============================
+
+ENV_NAME := preprocessing-env
+
+env-create:
+	conda env create -f code/utils/env.yaml
+
+env-update:
+	conda env update -f code/utils/env.yaml --prune
+
+env-check:
+	@conda env list | grep -q $(ENV_NAME) && echo "✅ Found $(ENV_NAME)" || \
+	  echo "❌ Conda env $(ENV_NAME) not found"

@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=plot
-#SBATCH --output=plot_%j.out
-#SBATCH --error=plot_%j.err
+#SBATCH --job-name=aivc-job
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
 #SBATCH --time=240:00:00
 #SBATCH --mem=1000G
 #SBATCH --cpus-per-task=16
@@ -9,18 +9,23 @@
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=cyuan36@emory.edu
 
-# Load Python 3.11 module (same one you used interactively)
-module load python/3.11.7-gcc-13.2.0-ljcvqdx
+set -euo pipefail
 
-# Print some debugging info
-echo "Running on $(hostname)"
-python3 --version
-python3 -m site --user-site
-echo "Job started at $(date)"
-echo "SLURM_JOB_ID: ${SLURM_JOB_ID}"
+# Load conda + activate env (non-interactive safe)
+module purge
+module load miniconda3
+eval "$(conda shell.bash hook)"
+conda activate preprocessing-env
 
-# Move to your project directory
+# Always run from repo root so relative paths behave
 cd ~/hulab/projects/AIVC
+
+# (Optional) print debugging info
+echo "Host: $(hostname)"
+echo "Job:  $SLURM_JOB_ID"
+echo "PWD:  $(pwd)"
+which python
+python --version
 
 # Run your script
 python3 4_plot.py
