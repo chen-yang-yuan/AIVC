@@ -8,6 +8,10 @@ __pycache__/
 .venv/
 .env
 
+# R
+.Rhistory
+.RData
+
 # Jupyter
 .ipynb_checkpoints/
 
