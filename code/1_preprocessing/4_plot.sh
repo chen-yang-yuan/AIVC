@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=aivc-job
+#SBATCH --job-name=plot
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --time=240:00:00
