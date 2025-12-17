@@ -6,7 +6,7 @@
 
 .PHONY: push status log check-branch \
         data-push-Xenium data-push out-pull data-push-dry out-pull-dry \
-        env-create env-update env-check
+        env-check env-create env-update env-recreate
 
 # ----------------------------
 # Git automation
