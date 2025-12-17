@@ -33,7 +33,7 @@ for data in ["Xenium_5K_BC"]:
     
     # paths
     data_dir = f"../../data/{data}/"
-    utils_dir = "../../data/utils/"
+    utils_dir = "../../data/_utils/"
     output_dir = f"../../output/{data}/"
     
     # Read data
