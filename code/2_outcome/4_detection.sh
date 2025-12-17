@@ -28,6 +28,6 @@ which python
 python --version
 
 # Run your script
-python3 3_detection.py
+python3 4_detection.py
 
 echo "Job finished at $(date)"
