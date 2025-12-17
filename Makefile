@@ -47,7 +47,7 @@ log:
 HGCC_USER := cyuan36
 HGCC_HOST := hgcc.emory.edu
 
-HGCC_BASE := $$HOME/hulab/projects/AIVC
+HGCC_BASE := ~/hulab/projects/AIVC
 LOCAL_BASE := $(HOME)/Dropbox/AIVC
 
 LOCAL_DATA := $(LOCAL_BASE)/data
