@@ -28,6 +28,6 @@ which python
 python --version
 
 # Run your script
-python3 3_embedding.py
+python3 code/1_preprocessing/3_embedding.py
 
 echo "Job finished at $(date)"

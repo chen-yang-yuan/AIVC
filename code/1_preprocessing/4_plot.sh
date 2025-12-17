@@ -28,6 +28,6 @@ which python
 python --version
 
 # Run your script
-python3 4_plot.py
+python3 code/1_preprocessing/4_plot.py
 
 echo "Job finished at $(date)"
