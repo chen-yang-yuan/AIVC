@@ -5,8 +5,11 @@ import warnings
 warnings.filterwarnings("ignore")
 sc.settings.verbosity = 0
 
+data_dir = "../../data/merged_data/"
+output_dir = "../../output/merged_data/"
+
 # Read data
-adata = sc.read_h5ad("adata_embedded.h5ad")
+adata = sc.read_h5ad(data_dir + "adata_embedded.h5ad")
 
 # Plot UMAP and t-SNE
 for key in ["batch", "cell_type_merged"]:
@@ -21,7 +24,7 @@ for key in ["batch", "cell_type_merged"]:
     ax.set_title("")
     for spine in ax.spines.values():
         spine.set_visible(False)
-    plt.savefig(f"{key}_umap.jpeg", dpi = 300, bbox_inches = "tight")
+    plt.savefig(output_dir + f"{key}_umap.jpeg", dpi = 300, bbox_inches = "tight")
     plt.close()
     
     sc.set_figure_params(figsize = (12, 12))
@@ -34,7 +37,7 @@ for key in ["batch", "cell_type_merged"]:
     ax.set_title("")
     for spine in ax.spines.values():
         spine.set_visible(False)
-    plt.savefig(f"{key}_tsne.jpeg", dpi = 300, bbox_inches = "tight")
+    plt.savefig(output_dir + f"{key}_tsne.jpeg", dpi = 300, bbox_inches = "tight")
     plt.close()
 
 print("Plotting done.")
