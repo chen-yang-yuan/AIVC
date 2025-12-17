@@ -176,5 +176,5 @@ for data in ["Xenium_5K_BC"]:
     plt.close()
     
     # Save granules and granule_adata
-    granules.to_csv(output_dir + "granules.csv", index = False)
-    granule_adata.write_h5ad(output_dir + "granule_adata.h5ad")
+    granules.to_csv(data_dir + "processed_data/granules.csv", index = False)
+    granule_adata.write_h5ad(data_dir + "processed_data/granule_adata.h5ad")
