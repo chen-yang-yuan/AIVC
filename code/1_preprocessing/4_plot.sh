@@ -18,7 +18,8 @@ eval "$(conda shell.bash hook)"
 conda activate preprocessing-env
 
 # Always run from repo root so relative paths behave
-cd ~/hulab/projects/AIVC
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
 
 # (Optional) print debugging info
 echo "Host: $(hostname)"
