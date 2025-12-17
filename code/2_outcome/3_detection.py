@@ -37,8 +37,7 @@ for data in ["Xenium_5K_BC"]:
     output_dir = f"../../output/{data}/"
     
     # Read data
-    genes = pd.read_csv(data_dir + "processed_data/genes.csv")
-    genes = list(genes.iloc[:, 0])
+    genes = np.load(utils_dir + "shared_genes.npy").astype(str).tolist()
 
     adata = sc.read_h5ad(data_dir + "intermediate_data/adata.h5ad")
     adata_tumor = adata[adata.obs["cell_type_merged"] == "Malignant cell"].copy()
