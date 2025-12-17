@@ -111,14 +111,28 @@ out-pull-dry:
 # Conda environment helpers
 # ============================
 
+ENV_YAML := code/utils/env.yaml
 ENV_NAME := preprocessing-env
 
-env-create:
-	conda env create -f code/utils/env.yaml
-
-env-update:
-	conda env update -f code/utils/env.yaml --prune
-
 env-check:
-	@conda env list | grep -q $(ENV_NAME) && echo "✅ Found $(ENV_NAME)" || \
+	@conda env list | grep -q "^$(ENV_NAME)\b" && \
+	  echo "✅ Found $(ENV_NAME)" || \
 	  echo "❌ Conda env $(ENV_NAME) not found"
+
+# Create env only if it does not exist
+env-create:
+	@conda env list | grep -q "^$(ENV_NAME)\b" && \
+	  echo "ℹ️  $(ENV_NAME) already exists; skipping create." || \
+	  conda env create -f $(ENV_YAML)
+
+# Update env if it exists, otherwise create it
+env-update:
+	@conda env list | grep -q "^$(ENV_NAME)\b" && \
+	  conda env update -f $(ENV_YAML) --prune || \
+	  conda env create -f $(ENV_YAML)
+
+# Explicitly destroy and rebuild (dangerous, but sometimes necessary)
+env-recreate:
+	@echo "⚠️  Recreating $(ENV_NAME) from scratch..."
+	conda remove -n $(ENV_NAME) --all -y
+	conda env create -f $(ENV_YAML)
