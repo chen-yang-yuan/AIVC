@@ -18,7 +18,7 @@ eval "$(conda shell.bash hook)"
 conda activate preprocessing-env
 
 # Always run from repo root so relative paths behave
-cd ~/hulab/projects/AIVC
+cd ~/hulab/projects/AIVC/code/1_preprocessing
 
 # (Optional) print debugging info
 echo "Host: $(hostname)"
@@ -28,6 +28,6 @@ which python
 python --version
 
 # Run your script
-python3 code/1_preprocessing/4_plot.py
+python3 4_plot.py
 
 echo "Job finished at $(date)"
