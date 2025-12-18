@@ -26,8 +26,7 @@ settings = {"Xenium_5K_BC": {"cell_type_label": True},
 
 plot_coords = ["global_x", "global_y"]
 
-# for data in settings.keys():
-for data in ["Xenium_5K_BC"]:
+for data in settings.keys():
     
     print(f"========== Processing {data}... ==========")
     
@@ -61,7 +60,7 @@ for data in ["Xenium_5K_BC"]:
     sg_markers_df = pd.read_excel(utils_dir + "SG_markers.xlsx")
     sg_markers_df = sg_markers_df.sort_values(by = "Fraction of RNA molecules in SGs", ascending = False)
 
-    thr = 0.25
+    thr = 0.2
     sg_marker_genes = sg_markers_df[sg_markers_df["Fraction of RNA molecules in SGs"] > thr]["gene"].to_list()
     overlap_genes = [i for i in sg_marker_genes if i in genes]
 
