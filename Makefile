@@ -112,7 +112,7 @@ out-pull-dry:
 # ============================
 
 ENV_YAML := code/utils/env.yaml
-ENV_NAME := preprocessing-env
+ENV_NAME := AIVC-env
 
 env-check:
 	@conda env list | grep -q "^$(ENV_NAME)\b" && \
