@@ -1,5 +1,5 @@
 # Large / generated
-data/
+data/*
 !data/_utils/
 !data/_utils/**
 output/
