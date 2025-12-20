@@ -1,5 +1,7 @@
 # Large / generated
 data/
+!data/_utils/
+!data/_utils/**
 output/
 
 # Python
