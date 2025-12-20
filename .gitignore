@@ -1,7 +1,11 @@
-# Large / generated
+# Data, except for utility scripts
 data/*
 !data/_utils/
 !data/_utils/**
+data/_utils/scGPT/
+data/_utils/scGPT/**
+
+# Output
 output/
 
 # Python
