@@ -27,7 +27,7 @@ settings = {"Xenium_5K_BC": {"cell_type_label": True},
 plot_coords = ["global_x", "global_y"]
 
 # for data in settings.keys():
-for data in ["Xenium_5K_Prostate", "Xenium_5K_Skin"]:
+for data in ["Xenium_5K_CC"]:
     
     print(f"========== Processing {data}... ==========")
     
