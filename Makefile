@@ -84,6 +84,17 @@ out-pull:
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
 
+# Pull granule_adata.h5ad from HGCC -> local data
+pull_granule_data:
+	@mkdir -p "$(LOCAL_DATA)"
+	rsync $(RSYNC_FAST) \
+	  --include='*/' \
+	  --include='processed_data/' \
+	  --include='processed_data/granule_adata.h5ad' \
+	  --exclude='*' \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/ \
+	  "$(LOCAL_DATA)"/
+
 # Optional: preview what would transfer (no changes)
 data-push-Xenium-dry:
 	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_DATA)'"
