@@ -8,13 +8,42 @@ dpi <- 500
 # Settings
 all_data <- c("Xenium_5K_BC", "Xenium_5K_OC", "Xenium_5K_CC", "Xenium_5K_LC", "Xenium_5K_Prostate", "Xenium_5K_Skin")
 
-# All genes
+# Gene panel
 genes <- read.csv(here::here("data/_utils/shared_genes.csv"), header = FALSE)
 genes <- genes$V1
 
 # SG markers
 sg_markers_df <- read_excel(here::here("data/_utils/SG_markers.xlsx"))
+sg_marker_genes <- sg_markers_df$gene
 
+# Overall in-cytoplasm ratio in tumor cells
+df <- read.csv(here::here("output/merged_data/in_cytoplasm_ratio_tumor.csv"))
+
+# Overlapped genes
+overlap_genes <- sg_marker_genes[sg_marker_genes %in% genes]
+
+# Filter dataframes
+sg_markers_df <- sg_markers_df[sg_markers_df$gene %in% overlap_genes, ]
+df <- df[df$gene %in% overlap_genes, ]
+
+# Plot
+plot_df <- left_join(sg_markers_df, df, by = "gene")
+
+p <- ggplot(plot_df, aes(x = `Fraction of RNA molecules in SGs`, y = in_cytoplasm_ratio)) +
+  coord_cartesian(xlim = c(0, 1), ylim = c(0, 1)) +
+  geom_point(shape = 21, fill = "#a0ccec", color = "lightgrey", size = 1, alpha = 0.8) +
+  geom_abline(slope = 1, intercept = 0, linewidth = 0.75, linetype = "dashed", color = "darkblue") +
+  # geom_smooth(method = "lm", se = TRUE, color = "firebrick", linewidth = 0.75) +
+  labs(title = " ", x = "Fraction of transcripts in SGs", y = "In-cytoplasm ratio in tumor cells") +
+  theme_classic() +
+  theme(axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_text(size = 15),
+        axis.text.y = element_text(size = 15))
+
+ggsave(here::here("output/merged_data/in_cytoplasm_ratio_vs_in_SG_fraction.jpeg"), p, width = 6, height = 6, dpi = dpi)
+
+# Split SG markers and non-SG markers
 thr <- 0.25
 sg_markers_df <- sg_markers_df %>%
   arrange(desc(`Fraction of RNA molecules in SGs`)) %>%
@@ -23,7 +52,7 @@ sg_marker_genes <- sg_markers_df$gene
 
 overlap_genes <- sg_marker_genes[sg_marker_genes %in% genes]
 
-# In-cytoplasm ratio
+# In-cytoplasm ratio in each dataset
 for (data in all_data){
   
   df <- read.csv(here::here(paste0("output/", data, "/in_cytoplasm_ratio.csv")))
