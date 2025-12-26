@@ -4,6 +4,8 @@ data/*
 !data/_utils/**
 data/_utils/scGPT/
 data/_utils/scGPT/**
+data/_utils/UNI/
+data/_utils/UNI/**
 
 # Output
 output/
