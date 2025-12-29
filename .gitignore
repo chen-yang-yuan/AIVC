@@ -1,3 +1,7 @@
+# Old and test code
+code/old/
+code/test/
+
 # Data, except for utility scripts
 data/*
 !data/_utils/

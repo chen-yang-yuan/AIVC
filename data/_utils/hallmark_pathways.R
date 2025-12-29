@@ -127,12 +127,12 @@ message("After dedup (Jaccard>=0.7 removed): ", nrow(all_sets_dedup))
 # }
 # close(con)
 
-gmt_path <- here::here("data/_utils/all_pathways_filtered.gmt")
-con <- file(gmt_path, open = "wt")
-for (i in seq_len(nrow(hallmark_filtered))) {
-  gs <- hallmark_filtered$gs_name[i]
-  genes <- hallmark_filtered$overlap_genes[[i]]
-  line <- paste(c(gs, "msigdbr_filtered", genes), collapse = "\t")
+con <- file(here::here("data/_utils/all_pathways_filtered.gmt"), open = "wt")
+for (i in seq_len(nrow(all_sets_dedup))) {
+  gs <- all_sets_dedup$gs_name[i]
+  genes <- all_sets_dedup$overlap_genes[[i]]
+  src <- all_sets_dedup$source[i]
+  line <- paste(c(gs, src, genes), collapse = "\t")
   writeLines(line, con)
 }
 close(con)
