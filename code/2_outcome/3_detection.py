@@ -26,7 +26,8 @@ settings = {"Xenium_5K_BC": {"cell_type_label": True},
 
 plot_coords = ["global_x", "global_y"]
 
-for data in settings.keys():
+# for data in settings.keys():
+for data in ["Xenium_5K_OC"]:
     
     print(f"========== Processing {data}... ==========")
     
@@ -60,7 +61,7 @@ for data in settings.keys():
     sg_markers_df = pd.read_excel(utils_dir + "SG_markers.xlsx")
     sg_markers_df = sg_markers_df.sort_values(by = "Fraction of RNA molecules in SGs", ascending = False)
 
-    thr = 0.25
+    thr = 0.4
     sg_marker_genes = sg_markers_df[sg_markers_df["Fraction of RNA molecules in SGs"] > thr]["gene"].to_list()
     overlap_genes = [i for i in sg_marker_genes if i in genes]
 
@@ -98,7 +99,7 @@ for data in settings.keys():
     print("-" * 30)
     
     # SG detection
-    mc = mcDETECT(type = "Xenium", transcripts = transcripts_merged, gnl_genes = ["Merged"], nc_genes = None, eps = 1,
+    mc = mcDETECT(type = "Xenium", transcripts = transcripts_merged, gnl_genes = ["Merged"], nc_genes = None, eps = 1.5,
                 minspl = 3, grid_len = 1, cutoff_prob = 0.95, alpha = 10, low_bound = 3, size_thr = 4,
                 in_nucleus_thr = (0.1, 0.9), l = 1, rho = 0.1, s = 1, nc_top = 15, nc_thr = 0.1)
     granules = mc.detect(record_cell_id = True)
@@ -110,7 +111,7 @@ for data in settings.keys():
     granules["nearest_cell_type"] = pd.Categorical(granules["nearest_cell_type"], categories = ["Malignant cell"], ordered = True)
     
     # SG profiling
-    mc = mcDETECT(type = "Xenium", transcripts = transcripts, gnl_genes = overlap_genes, nc_genes = None, eps = 1,
+    mc = mcDETECT(type = "Xenium", transcripts = transcripts, gnl_genes = overlap_genes, nc_genes = None, eps = 1.5,
                 minspl = 3, grid_len = 1, cutoff_prob = 0.95, alpha = 10, low_bound = 3, size_thr = 4,
                 in_nucleus_thr = (0.1, 0.9), l = 1, rho = 0.1, s = 1, nc_top = 15, nc_thr = 0.1)
     granule_adata = mc.profile(granules, genes = genes, buffer = 0.05)

@@ -33,6 +33,16 @@ hallmark_filtered <- overlap_filter(hallmark_sets, min_overlap = min_overlap_hal
 
 message("Kept ", nrow(hallmark_filtered), " out of ", nrow(hallmark_sets), " hallmark pathways with overlap ≥ ", min_overlap_hallmark, " genes.")
 
+hallmark_filtered_chr <- hallmark_filtered %>%
+  mutate(overlap_genes = purrr::map_chr(overlap_genes, ~ paste(unlist(.x), collapse = ", ")),
+         gs_name = gs_name %>%
+           str_remove("^HALLMARK_") %>%
+           str_to_lower() %>%
+           str_replace_all("_", " ") %>%
+           str_to_title())
+
+write.csv(hallmark_filtered_chr, here::here("data/_utils/filtered_pathways_hallmark.csv"), row.names = FALSE)
+
 # ==================== reactome pathways ==================== #
 reactome_sets <- msigdbr(species = "Homo sapiens", category = "C2", subcategory = "CP:REACTOME") %>%
   select(gs_name, gene_symbol)
@@ -55,6 +65,16 @@ reactome_filtered <- overlap_filter(reactome_focus, min_overlap = min_overlap_ot
 
 message("Kept ", nrow(reactome_filtered), " out of ", nrow(reactome_sets), " reactome pathways with overlap ≥ ", min_overlap_others, " genes.")
 
+reactome_filtered_chr <- reactome_filtered %>%
+  mutate(overlap_genes = purrr::map_chr(overlap_genes, ~ paste(unlist(.x), collapse = ", ")),
+         gs_name = gs_name %>%
+           str_remove("^REACTOME_") %>%
+           str_to_lower() %>%
+           str_replace_all("_", " ") %>%
+           str_to_title())
+
+write.csv(reactome_filtered_chr, here::here("data/_utils/filtered_pathways_reactome.csv"), row.names = FALSE)
+
 # ==================== GO pathways ==================== #
 gobp_sets <- msigdbr(species = "Homo sapiens", category = "C5", subcategory = "BP") %>%
   select(gs_name, gene_symbol)
@@ -74,6 +94,16 @@ gobp_filtered <- overlap_filter(gobp_focus, min_overlap = min_overlap_others, ge
   mutate(source = "C5:GO_BP")
 
 message("Kept ", nrow(gobp_filtered), " out of ", nrow(gobp_sets), " GO pathways with overlap ≥ ", min_overlap_others, " genes.")
+
+gobp_filtered_chr <- gobp_filtered %>%
+  mutate(overlap_genes = purrr::map_chr(overlap_genes, ~ paste(unlist(.x), collapse = ", ")),
+         gs_name = gs_name %>%
+           str_remove("^GOBP_") %>%
+           str_to_lower() %>%
+           str_replace_all("_", " ") %>%
+           str_to_title())
+
+write.csv(gobp_filtered_chr, here::here("data/_utils/filtered_pathways_gobp.csv"), row.names = FALSE)
 
 # ==================== Combine ==================== #
 
@@ -113,7 +143,7 @@ dedup_by_jaccard <- function(df, threshold = 0.7){
   df[keep, , drop = FALSE]
 }
 
-all_sets_dedup <- dedup_by_jaccard(all_sets, threshold = 0.7)
+all_sets_dedup <- dedup_by_jaccard(all_sets, threshold = 0.5)
 message("After dedup (Jaccard>=0.7 removed): ", nrow(all_sets_dedup))
 
 # write GMT
