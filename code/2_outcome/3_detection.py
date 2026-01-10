@@ -26,8 +26,7 @@ settings = {"Xenium_5K_BC": {"cell_type_label": True},
 
 plot_coords = ["global_x", "global_y"]
 
-# for data in settings.keys():
-for data in ["Xenium_5K_OC"]:
+for data in settings.keys():
     
     print(f"========== Processing {data}... ==========")
     
@@ -176,5 +175,5 @@ for data in ["Xenium_5K_OC"]:
     plt.close()
     
     # Save granules and granule_adata
-    granules.to_csv(data_dir + "processed_data/granules.csv", index = False)
-    granule_adata.write_h5ad(data_dir + "processed_data/granule_adata.h5ad")
+    granules.to_csv(data_dir + f"processed_data/granules_{thr}_{mc.eps}.csv", index = False)
+    granule_adata.write_h5ad(data_dir + f"processed_data/granule_adata_{thr}_{mc.eps}.h5ad")
