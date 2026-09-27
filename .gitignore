@@ -34,3 +34,6 @@ __pycache__/
 
 # Logs
 *.log
+# Fig. 1 exploration: SLURM logs and notebook test copies
+code/2_exploration/logs/
+code/2_exploration/_test_*.ipynb

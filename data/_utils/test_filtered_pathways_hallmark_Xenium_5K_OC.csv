@@ -1,0 +1,7 @@
+"gs_name","overlap_genes","overlap_n","source"
+"Myc Targets V1","C1QBP, CBX3, CCT3, CCT5, CCT7, EIF4A1, FBL, HNRNPD, HSPD1, IMPDH2, KPNB1, LDHA, PHB2, PTGES3, RAN, SMARCC1, SRSF1, SSB, XPO1",19,"H:hallmark"
+"G2m Checkpoint","CENPF, HMGA1, HNRNPD, HSPA8, KIF5B, KPNB1, NOTCH2, NUMA1, SFPQ, SMARCC1, SMC4, SRSF1, XPO1",13,"H:hallmark"
+"E2f Targets","HMGA1, HNRNPD, IPO7, PRKDC, RAN, SMC4, SRSF1, TP53, TUBB, XPO1",10,"H:hallmark"
+"Mitotic Spindle","CENPF, KIF5B, MYH10, MYH9, NOTCH2, NUMA1, SEPTIN9, SMC4, STAU1",9,"H:hallmark"
+"Mtorc1 Signaling","GMPS, HSPA9, HSPD1, LDHA, RPN1, UBE2D3",6,"H:hallmark"
+"Unfolded Protein Response","ATF4, EIF4A1, EIF4G1, HSPA9, KIF5B, YWHAZ",6,"H:hallmark"

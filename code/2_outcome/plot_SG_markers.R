@@ -44,7 +44,7 @@ p <- ggplot(plot_df, aes(x = `Fraction of RNA molecules in SGs`, y = in_cytoplas
 ggsave(here::here("output/merged_data/in_cytoplasm_ratio_vs_in_SG_fraction.jpeg"), p, width = 6, height = 6, dpi = dpi)
 
 # Split SG markers and non-SG markers
-thr <- 0.25
+thr <- 0.4
 sg_markers_df <- sg_markers_df %>%
   arrange(desc(`Fraction of RNA molecules in SGs`)) %>%
   filter(`Fraction of RNA molecules in SGs` > thr)
