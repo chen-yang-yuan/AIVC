@@ -1,6 +1,6 @@
 # Fig. 1 Exploration: Nuclear vs Cytoplasmic Expression in Tumor Cells
 
-Last updated: 2026-09-26.
+Last updated: 2026-09-27.
 
 ## 1. Purpose and scope
 
@@ -132,64 +132,92 @@ reference) to estimate agreement on LC/Prostate/Skin and non-epithelial contamin
 
 ## 4. Status
 
-- 2026-09-26: pipeline implemented and verified end to end on LC in quick mode (20k cells; light steps ~2 min,
-  heavy steps ~5 min locally) and on CC in quick mode (the shallow sample). Full runs on all six datasets pending
-  (HGCC submission of `1_heavy.sh`, then the notebook).
+- 2026-09-27: full run complete on all six datasets (heavy steps on HGCC, all kept tumor cells; light steps and
+  figures locally; notebook executed end to end without errors). All tables and figures are under
+  `output/2_exploration/<ds>/` and `output/2_exploration/cross_sample/` (`decision_summary.csv` is the one-page view).
+  Interpretation and recommendations in section 5.3; nothing is locked yet.
 
-## 5. Measurements (quick-mode, LC, 20k-cell subsample; to be replaced by the full run)
+## 5. Results (full run, 2026-09-27)
 
-- Depth: median nuclear/cytoplasmic 568/704 per tumor cell; nuclear share of in-cell reads 0.42; 93.5% of cells pass
-  the matched-depth filter; tile edge 130 um.
-- Positive controls: MEG3 -2.1, MIAT -1.7, PVT1 -1.9, CRNDE -2.6, HOTAIR -1.1 (all nuclear-retained); NORAD +0.32,
-  EPCAM +0.37, HSPA8 +0.46, EEF1G +0.62 (cytoplasm side of the offset). 599 genes nuclear-retained, 6 cytoplasm-
-  enriched, 3927 balanced. Most reliable per-gene localisation: interferon-response genes (CXCL10, IRF1, CXCL9),
-  rel 0.5-0.6.
-- SG marker set vs matched control (set level): beta -0.23 vs +0.01, reliability 0.13 vs 0.01.
-- Clustering (res 0.5): ARI nuc/cyto 0.28 against ceilings nuc-halves 0.51, cyto-halves 0.64, cross-halves 0.37;
-  ARI nuc/total_full 0.41; no cluster met the cytoplasm-only criteria on the subsample.
-- DE (nuclear partition): cyto-only 37, nuc-only 406, shared 426 gene-cluster pairs; top-50 marker Jaccard 0.45.
-- Association: 1795 genes; largest fraction-model effects come from segmentation method (EEF1G 0.21) and are
-  excluded from the candidate axes; pathway fraction model above the matched null in 23 sets for subtype, 7 for
-  niche, 10 for tumor fraction.
+### 5.1 Per sample
 
-CC (quick mode, the shallow sample): 75.8% of cells pass the matched-depth filter (median matched depth 42); per-gene
-reliability is reportable for only 22 genes at cell level, so CC will rest on tile-level and pathway-level statistics;
-1607 genes classify as nuclear-retained at the offset (to be checked against segmentation strata in the full run);
-positive controls remain nuclear-retained (MEG3 -1.3, CRNDE -2.1, HOTAIR -1.5); half-split clustering ceilings are at
-the noise floor (ARI 0.03-0.04), which is the expected honest result at this depth. Light steps take ~3.5 min
-(quick) and the heavy quick steps ~2 min.
+| | BC | OC | CC | LC | Prostate | Skin |
+|---|---|---|---|---|---|---|
+| Tumor cells / kept (one nucleus, matched depth >= 30) | 102k / 81% | 160k / 90% | 221k / 76% | 45k / 94% | 95k / 73% | 49k / 77% |
+| Median matched depth; nuclear share of reads | 100; 0.54 | 170; 0.53 | 62; 0.45 | 447; 0.42 | 93; 0.46 | 208; 0.37 |
+| Genes with mean in-cell count >= 0.5 | 88 | 164 | 21 | 859 | 86 | 311 |
+| A1 nuclear-retained / cytoplasm-enriched genes | 2169 / 21 | 1918 / 0 | 1607 / 1 | 599 / 6 | 1379 / 0 | 372 / 20 |
+| A1 genes with reliable localisation (rel >= 0.1, >= 200 units) | 15 | 26 | 21 | 209 | 26 | 92 |
+| B5 SG set vs matched control, reliability | 0.14 vs 0.12 | 0.07 vs 0.06 | 0.17 vs 0.14 | 0.13 vs 0.01 | 0.06 vs 0.07 | 0.06 vs 0.03 |
+| A2 tile-level r_true median (genes) | 0.46 (1419) | 0.66 (981) | 0.60 (1034) | 0.66 (2162) | 0.55 (999) | 0.64 (1648) |
+| A3 ARI nuc/cyto vs ceilings nuc-halves, cyto-halves, cross-halves | 0.15 vs 0.20, 0.16, 0.13 | 0.22 vs 0.18, 0.25, 0.19 | 0.06 vs 0.14, 0.13, 0.12 | 0.40 vs 0.47, 0.44, 0.37 | 0.36 vs 0.16, 0.28, 0.25 | 0.12 vs 0.21, 0.22, 0.13 |
+| A3 ARI nuc/total_full; cyto/total_full; cyto-only clusters | 0.14; 0.24; 0 | 0.14; 0.16; 0 | 0.12; 0.06; 0 | 0.44; 0.31; 0 | 0.33; 0.39; 0 | 0.15; 0.13; 0 |
+| A3b verdict (residual PC1 gene; Moran's I vs floor) | none (XBP1; 0.07 vs 0.05) | continuous axis (H19; 0.26 vs 0.20) | none (EEF1G; 0.07 vs 0.06) | none (CTSH; 0.02 vs 0.03) | none (EEF1G; 0.08 vs 0.04) | none (S100A1; 0.01 vs 0.02) |
+| A4 genes cyto-only / nuc-only / shared DE across nuclear subtypes | 190 / 198 / 342 | 468 / 321 / 850 | 268 / 269 / 243 | 24 / 328 / 342 | 142 / 127 / 414 | 73 / 110 / 1022 |
+| C7 genes whose cytoplasmic fraction tracks subtype / niche / tumor fraction (dev. expl. beyond permutation >= 0.005) | 15 / 2 / 1 | 2 / 0 / 0 | 31 / 0 / 0 | 842 / 6 / 1 | 24 / 2 / 0 | 209 / 41 / 15 |
+| C7 genes with niche signal beyond subtype | 1 | 0 | 0 | 6 | 0 | 1 |
+| C8 pathways with reliability above the matched null (95th pct) | 21 | 8 | 27 | 25 | 12 | 18 |
+| C9 candidate genes | 6 | 4 | 7 | 147 | 17 | 66 |
 
-### Annotation QC results (step 0b, all cells, 2026-09-26)
+### 5.2 Across samples
 
-Provenance and tumor-set purity (`output/2_exploration/cross_sample/annotation_provenance.csv`):
+- Per-gene localisation (log odds ratio) is reproducible between samples: r = 0.80-0.83 among BC, OC and CC, 0.72
+  between LC and Skin, 0.35-0.65 otherwise. The two groups coincide with the two panel runs (BC/OC/CC: "5K with
+  Cell Typing add-on", one run day; LC/Prostate/Skin: "5K Pan Tissue"), so part of the between-sample difference is
+  batch. Positive controls hold in every sample (MEG3, MIAT, PVT1, CRNDE, HOTAIR nuclear-retained).
+- Candidate genes: 211 in at least one sample, 28 in two, 6 in three or more (EEF1G, LDHA, NOTCH2NLA, H3F3B, YWHAZ,
+  NDRG1). These are abundant genes whose localisation tracks the nuclear subtype; only NDRG1 and LDHA are
+  stress-annotated. Genes cyto-only DE in >= 3 samples: 15 (NR4A1, HYOU1, SORD, PIK3R2, SRSF2, PIM1, DAXX, ...).
+- Pathways whose cytoplasmic localisation is reliably variable in >= 4 samples: EMT, external encapsulating
+  structure organisation, TNFa/NF-kB, RNA processing, RNA polymerase II transcription, interferon gamma response,
+  E2F targets, RNA splicing, allograft rejection, mRNA metabolic process, and the SG marker set (4 of 6 samples above
+  its matched null). Pathways whose cytoplasmic fraction tracks niche or tumor fraction beyond the matched null in
+  several samples: KRAS signalling up (7 sample-axis hits), EMT (5), ER-stress response (4), TNFa/NF-kB (4), cellular
+  response to chemical stress (4); effects are small (deviance explained 0.001-0.01).
+- Step 3b: no sample yields an eligible cytoplasm-specific cluster. OC passes the continuous-axis criterion: residual
+  PC1 (top gene H19) has split-half reliability 0.67, Moran's I 0.26 above the 99th permutation percentile and the
+  leakage floor (0.20), and a core-vs-boundary dose-response of +0.6 SD in both halves; the map shows lobe-scale
+  regions. Caveats: the floor is high (leakage), and in BC and CC no nuclear PC survived the reliability gate at half
+  depth (median depth 100 and 62), so their residualisation rests on the cluster one-hot alone and the verdicts there
+  are depth-limited rather than negative. Skin residual PC2 (EEF1G) shows a boundary-vs-core effect of +0.4 SD in
+  both halves with I above the floor, failing only the singular-value gate (also under a scale-free version).
+- Annotation QC (section 3, run 2026-09-26): the supervised tumor sets are clean; LC, Prostate and Skin carry
+  benign-like or low-signal clusters (20-28% of their tumor cells).
 
-| Sample | Source | Tumor frac | Unresolved | Non-malignant epithelium class | Malignant cells confidently epithelial (transfer) | Immune-like | Benign-like malignant clusters (cells) |
-|---|---|---|---|---|---|---|---|
-| BC | 10x supervised | 0.25 | 0 | yes | 0.97 | 0.018 | n/a |
-| OC | 10x supervised | 0.49 | 0 | yes | 0.99 | 0.022 | n/a |
-| CC | 10x supervised | 0.38 | 0 | yes | 0.96 | 0.041 | n/a |
-| LC | manual clusters | 0.16 | 0.03 | yes | 0.92 | 0.030 | 2 of 5 (20%): cluster 31 basal-high (656 cells), cluster 14 lineage-low, immune-high (8.4k) |
-| Prostate | manual clusters | 0.49 | 0.11 | no | 0.76 | 0.018 | 2 of 8 (28%): cluster 9 TP63-high, AMACR-low = benign basal/glands (10.5k); cluster 4 low signal on every set (15.8k) |
-| Skin | manual clusters | 0.44 | 0.13 | no | 0.64 | 0.011 | 5 of 10 (22%): clusters 20/26/27/28 keratinocyte-like, TP63-high, melanocytic markers absent (3.1k); cluster 5 near-zero on every set (7.8k) |
+### 5.3 Interpretation and recommendations (not locked)
 
-- No sample has lineage-negative tumor cells by the per-cell rule (the sets are broad), and immune or endothelial
-  contamination of the tumor sets is at most 4% by markers and at most 3.6% by the transfer classifier. The
-  supervised sets are clean by every check.
-- The manually annotated sets carry benign or low-signal clusters inside "Malignant cell": ~20% (LC), ~28% (Prostate),
-  ~22% (Skin) of their tumor cells. Prostate cluster 9 and the Skin keratinocyte clusters are the clearest cases;
-  Prostate cluster 4 and Skin cluster 5 look like low-count cells rather than a cell type.
-- Non-epithelial label transfer (classifier trained on BC/OC/CC; leave-one-dataset-out accuracy 0.6-0.9 for most
-  classes, ~0.75 median): endothelial, B, mast, pericyte and fibroblast labels agree at 0.7-0.97 in LC/Prostate/Skin;
-  the T-cell subtypes and dendritic vs myeloid distinctions do not transfer well (0.2-0.5), as expected across
-  tissues. Prostate "Unknown" (21k cells) is predicted with low confidence for any class, i.e. mostly low-quality
-  cells; LC and Skin "Mixed" are ~60% confidently immune.
-- Implication for the exploration: results on LC, Prostate and Skin should be read with the benign-like clusters in
-  mind; the nuclear "subtype" partitions there may separate benign from malignant cells. The fix, if adopted, is a
-  harmonised tumor set (label AND not benign-like cluster AND marker/transfer pass), which would drop 20-28% of the
-  tumor cells in those three samples. Not applied (decision: report only).
-- Caveats: the off-lineage flag is noisy (several off-lineage genes, e.g. MSLN, TP63, SOX2, CDKN2A, are expressed in
-  other carcinomas); melanoma cells map to the classifier's "epithelial" class because that class is the only
-  non-stromal, non-immune class it knows.
+1. The compartments are different, and the difference is reproducible: ~400-2200 genes per sample are nuclear-
+   retained relative to the cell's own offset, with lncRNA controls at the expected end, and per-gene log odds
+   ratios correlate 0.8 between samples of the same panel run. This is the Part A1 panel and it is solid.
+2. Per-cell localisation is mostly counting noise. Reliable per-gene localisation exists for 15-26 genes in the four
+   shallower samples and 92-209 in LC and Skin; tile pooling extends coverage to ~1000-2000 genes with median
+   disattenuated nuclear-cytoplasmic correlation 0.5-0.66, i.e. substantial gene-level divergence between
+   compartments once noise is removed. The SG set is more variable than its matched control only in LC.
+3. Compartment-specific clustering does not exist in these data: nuclear and cytoplasmic partitions agree with each
+   other as well as each agrees with its own half-split, and no cluster is cytoplasm-only. Nuclear-only clustering
+   recovers the total-depth partition as well as cytoplasmic clustering does (identity-source question), but
+   clusterability is limited by depth, not by compartment: at matched depth even total expression gives only 3-9
+   clusters, while full-depth total finds up to 19 (OC). Recommendation: identity from nuclear reads (target form C)
+   is defensible where nuclear depth is adequate (LC, Skin, OC); in BC, CC and Prostate a total-based identity with
+   target genes excluded (form A) or a hybrid is safer.
+4. Cytoplasm-specific differential expression across nuclear subtypes is real and large (24-468 genes per sample,
+   symmetric with nucleus-only DE) and 15 genes recur in >= 3 samples. This is the strongest "post-transcriptional
+   signal" panel (A4) and the best per-gene target source.
+5. The environment adds little to per-gene localisation: beyond subtype, niche or boundary explain >= 0.5% deviance
+   for at most 6 genes per sample; the naive-model conclusion generalises from the SG set to the panel. Where the
+   environment shows, it shows at pathway level (KRAS up, EMT, ER stress, TNFa) and in the cytoplasmic COUNT rather
+   than the fraction. Recommendation on target form: primary target = cytoplasmic count (A or C), with the
+   compartment split (B) as a secondary readout for the subtype-sensitive genes, and count-aggregated pathway
+   activity for the environment-sensitive programs.
+6. The single persuasive panel (a cytoplasm-only, spatially coherent cluster at the boundary or in an immune niche)
+   was not found under the pre-registered rule. The OC H19 residual axis is the closest and can be shown as a
+   continuous map with its dose-response, labelled as such. Fig. 1 should therefore lead with A1 (compartment
+   structure and controls), the reliability ceiling, A4 (cyto-only DE across subtypes), and C8 (pathway-level
+   environment associations), with A3/A3b reported as the honest negative.
+7. Target gene set: the recurrent candidates (6 genes in >= 3 samples, 28 in >= 2) plus the 15 recurrent cyto-only DE
+   genes form a first list of ~40 genes; it is dominated by abundant housekeeping-like mRNAs (EEF1G, YWHAZ, H3F3B,
+   LDHA), so a pathway-level target remains the recommended primary form for the model, with these genes as the
+   per-gene track.
 
 ## 6. Open items
 
@@ -212,6 +240,12 @@ Provenance and tumor-set purity (`output/2_exploration/cross_sample/annotation_p
   (no residual dimension above the leakage floor at half depth on 20k cells). To be re-evaluated on all cells.
 
 ## 7. Log
+
+- **2026-09-27** — Full run on all six datasets completed (HGCC heavy steps, local light steps and figures); results
+  in section 5. Headline: compartments differ reproducibly per gene; no cytoplasm-only cluster in any sample under
+  the pre-registered rule (OC has a continuous residual axis, H19); cytoplasm-specific DE across nuclear subtypes is
+  substantial (24-468 genes per sample, 15 recurrent); the environment explains little per-gene localisation and
+  shows mainly at pathway level. Recommendations in 5.3; decisions pending.
 
 - **2026-09-26 (evening)** — Step 0b annotation QC added and run on all six datasets (report only). Finding: the
   supervised tumor sets (BC, OC, CC) are clean; the manually annotated sets contain benign-like or low-signal

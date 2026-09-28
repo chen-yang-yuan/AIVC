@@ -1,6 +1,6 @@
 # AIVC Model Design Tracker
 
-Current as of 2026-09-26 (evening).
+Current as of 2026-09-27.
 
 ## Purpose
 
@@ -157,9 +157,9 @@ Output of this step: the candidate target gene set (or pathway set), the choice 
 
 ## Open questions
 
-- [ ] Target form A (absolute count, target genes out of identity), B (compartment split given total) or C (absolute count from nuclear identity), or a combination; decided by the Fig. 1 results.
-- [ ] Identity source: total or nuclear expression; decided by whether nuclear-only clustering recovers the subtypes (Fig. 1 analysis 3).
-- [ ] Target gene set and whether the primary target is per gene or per pathway.
+- [ ] Target form A (absolute count, target genes out of identity), B (compartment split given total) or C (absolute count from nuclear identity), or a combination. Fig. 1 evidence (`plans/fig1_exploration.md` 5.3): the environment adds almost nothing to the per-gene split (B) but shows in cytoplasmic counts and at pathway level; recommendation: count-based primary target (A or C) with B as a secondary readout.
+- [ ] Identity source: total or nuclear expression. Fig. 1 evidence: nuclear-only clustering recovers the total partition as well as cytoplasmic clustering does, but clusterability is depth-limited; nuclear identity is defensible in LC, Skin, OC and marginal in BC, CC, Prostate.
+- [ ] Target gene set and whether the primary target is per gene or per pathway. Fig. 1 evidence: reliable per-gene localisation for 15-209 genes per sample; ~40 recurrent candidate / cyto-only-DE genes; environment signal mainly at pathway level (KRAS up, EMT, ER stress, TNFa). Recommendation: pathway-level primary target with a per-gene track.
 - [x] FFPE status of the six processed samples: all FFPE (2026-09-26). The remaining datasets' status is still to be checked as they are ingested; fresh-frozen samples are excluded from training for now.
 - [ ] Tumor-cell definition across datasets: BC/OC/CC use 10x supervised labels, LC/Prostate/Skin manual cluster
   annotation without a non-malignant epithelial class. Step 0b of the Fig. 1 exploration reports the consistency;
@@ -185,3 +185,4 @@ Output of this step: the candidate target gene set (or pathway set), the choice 
 | 2026-09-26 | Next step: exploratory analysis of the processed Xenium 5K datasets on nuclear vs cytoplasmic differential patterns, to produce Fig. 1 and select the target gene set. |
 | 2026-09-26 | Training data restricted to FFPE samples for now; fresh-frozen samples deferred because gene localization patterns differ between preparation methods. Nuclear expression added as a candidate identity source (target form C). Fig. 1 plan expanded with basic compartment comparisons (clustering, differential expression) ahead of the target-selection analyses. |
 | 2026-09-26 | All six processed Xenium 5K samples verified FFPE from `experiment.xenium`. The naive model is dropped from the project (code and write-up not kept); its retained lessons stay in this tracker. Fig. 1 exploration implemented in `code/2_exploration/` with light steps in a notebook and heavy steps on HGCC (`plans/fig1_exploration.md`). Positive controls replaced by panel lncRNAs (MEG3, MIAT, PVT1, CRNDE, HOTAIR nuclear; NORAD cytoplasmic). Morphology axis for this stage = segmentation-derived features only. The compartment matrices keep all decoded transcripts (no QV filter); recorded as a caveat. |
+| 2026-09-27 | Fig. 1 exploration run on all six datasets; results and recommendations in `plans/fig1_exploration.md` section 5. The pre-registered "cytoplasm-only spatially coherent cluster" panel does not exist in these data (OC shows a continuous residual axis only); cytoplasm-specific DE across nuclear subtypes and pathway-level environment associations are the positive findings. Decisions on target form, identity source and gene set remain open for the user. |
