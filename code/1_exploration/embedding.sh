@@ -38,6 +38,18 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
+# Stagger the starts so 24 tasks do not import the same conda env in the same second (BeeGFS metadata flakes).
+sleep $(( (SLURM_ARRAY_TASK_ID % 8) * 15 ))
+
+# Import check with retries: transient "No such file or directory: ...egg-info/PKG-INFO" errors from
+# pkg_resources while importing scanpy happen under load; a genuine env problem still fails after 5 tries.
+for attempt in 1 2 3 4 5; do
+    if python3 -c "import scanpy" 2>/dev/null; then break; fi
+    echo "import scanpy failed (attempt $attempt), retrying in $((attempt * 30))s"
+    sleep $((attempt * 30))
+    if [ "$attempt" -eq 5 ]; then echo "import scanpy failed 5 times, giving up"; exit 1; fi
+done
+
 python3 embedding.py --task "$SLURM_ARRAY_TASK_ID"
 
 echo "Job finished at $(date)"
