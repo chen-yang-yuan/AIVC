@@ -8,7 +8,7 @@ nuc_colors_light <- c("#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5", "#c
 cyto_colors <- c("#F56867", "#FEB915", "#C798EE", "#59BE86", "#7495D3", "#6D1A9C", "#15821E", "#3A84E6", "#997273", "#D1D1D1")
 dpi <- 500
 
-sample <- "Xenium_5K_BC"
+sample <- "Xenium_5K_LC"
 
 df <- read.csv(here::here(paste0("output/1_exploration/", sample, "/clustering_results.csv")))
 

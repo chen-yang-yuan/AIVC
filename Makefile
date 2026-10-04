@@ -6,6 +6,7 @@
 
 .PHONY: push status log check-branch \
         data-push-Xenium data-push out-pull data-push-dry out-pull-dry \
+        enrich-push enrich-push-dry \
         env-check env-create env-update env-recreate
 
 # ----------------------------
@@ -83,6 +84,19 @@ out-pull:
 	rsync $(RSYNC_FAST) \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
+
+# Push the cytoplasm-enriched gene sets (output/1_exploration/enrichment, from 1_enrichment.ipynb) -> HGCC
+ENRICH_SUBDIR := 1_exploration/enrichment
+enrich-push:
+	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_OUT)/$(ENRICH_SUBDIR)'"
+	rsync $(RSYNC_FAST) \
+	  "$(LOCAL_OUT)/$(ENRICH_SUBDIR)"/ \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(ENRICH_SUBDIR)"/
+
+enrich-push-dry:
+	rsync $(RSYNC_FAST) --dry-run \
+	  "$(LOCAL_OUT)/$(ENRICH_SUBDIR)"/ \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(ENRICH_SUBDIR)"/
 
 # Pull granule_adata.h5ad from HGCC -> local data
 pull_granule_data:
