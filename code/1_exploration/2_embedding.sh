@@ -6,18 +6,18 @@
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=16
 #SBATCH --partition=nodes
-#SBATCH --array=0-19
+#SBATCH --array=0-9
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=cyuan36@emory.edu
 
-# One array task per (sample, compartment, gene set): nuclear/cytoplasmic expression of the five tumor samples
-# (no Skin) restricted to the cytoplasm-enriched gene sets from 1_enrichment.ipynb (shared5 / shared3).
-# Task table:  python3 2_embedding.py --list   (ids 0-3 BC, 4-7 OC, 8-11 CC, 12-15 LC, 16-19 Prostate)
-# Before the first submission copy the gene sets to HGCC:  make enrich-push  (from the local repo root)
+# One array task per (sample, compartment): nuclear/cytoplasmic expression of the five tumor samples (no Skin)
+# restricted to the cytoplasm-enriched HVG set from 1_enrichment.ipynb (overlap_genes_3plus_samples.npy).
+# Task table:  python3 2_embedding.py --list   (ids 0-1 BC, 2-3 OC, 4-5 CC, 6-7 LC, 8-9 Prostate)
+# Before submitting copy the gene set to HGCC:  make enrich-push  (from the local repo root)
 # Submit from this folder:
-#   sbatch 2_embedding.sh                 # all 20 tasks
-#   sbatch --array=0-3 2_embedding.sh     # one sample (BC)
-#   sbatch --array=0-19%8 2_embedding.sh  # at most 8 tasks at a time
+#   sbatch 2_embedding.sh                 # all 10 tasks
+#   sbatch --array=0-1 2_embedding.sh     # one sample (BC)
+#   sbatch --array=0-9%5 2_embedding.sh   # at most 5 tasks at a time
 # Existing outputs are skipped; add --force to the python line to recompute.
 
 set -euo pipefail
@@ -40,15 +40,13 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-# Gene sets are produced locally (output/ is gitignored); they must be rsynced here first (make enrich-push).
-ENRICH_DIR=~/hulab/projects/AIVC/output/1_exploration/enrichment
-for f in overlap_genes_all.npy overlap_genes_3plus_samples.npy; do
-    if [ ! -f "$ENRICH_DIR/$f" ]; then
-        echo "Missing $ENRICH_DIR/$f: run 'make enrich-push' locally before submitting"; exit 1
-    fi
-done
+# The gene set is produced locally (output/ is gitignored); it must be rsynced here first (make enrich-push).
+GENE_SET=~/hulab/projects/AIVC/output/1_exploration/enrichment/overlap_genes_3plus_samples.npy
+if [ ! -f "$GENE_SET" ]; then
+    echo "Missing $GENE_SET: run 'make enrich-push' locally before submitting"; exit 1
+fi
 
-# Stagger the starts so 20 tasks do not import the same conda env in the same second (BeeGFS metadata flakes).
+# Stagger the starts so 10 tasks do not import the same conda env in the same second (BeeGFS metadata flakes).
 sleep $(( (SLURM_ARRAY_TASK_ID % 8) * 15 ))
 
 # Import check with retries: transient "No such file or directory: ...egg-info/PKG-INFO" errors from
