@@ -85,6 +85,21 @@ def load_tumor(sample):
     return adata_all[adata_all.obs["cell_id"].isin(cell_ids)].copy()
 
 
+def regress_out_covariate(X, covariate):
+    """Residuals of a per-gene OLS fit of X on an intercept and one covariate (closed form, vectorized).
+
+    Identical to sc.pp.regress_out(adata, key) for a single numeric covariate, but without joblib worker processes:
+    regress_out ships a copy of the dense matrix to each of n_jobs workers, which exceeds the job memory for the
+    larger samples (TerminatedWorkerError). X is densified (cells x genes, float32); the result is a dense array.
+    """
+    X = X.toarray() if sparse.issparse(X) else np.asarray(X)
+    X = X.astype(np.float32, copy=False)
+    c = np.asarray(covariate, dtype=np.float64)
+    c = c - c.mean()
+    beta = (c @ X.astype(np.float64)) / (c @ c)                      # per-gene slope on the centered covariate
+    return (X - X.mean(axis=0) - np.outer(c, beta)).astype(np.float32)  # residuals (intercept removed as well)
+
+
 def build_compartment(adata_tumor, sample, label, genes, tag):
     processed_path = f"../../data/{sample}/processed_data/"
     compartment_expression = sparse.load_npz(processed_path + f"{label}_expression_matrix.npz")
@@ -110,7 +125,7 @@ def build_compartment(adata_tumor, sample, label, genes, tag):
     # depth correction: regress out log10 compartment depth and z-score the genes, otherwise PC1 = depth and the
     # clusters are depth strata (see module docstring)
     adata.obs["log_compartment_total_counts"] = np.log10(adata.obs["compartment_total_counts"].values + 1)
-    sc.pp.regress_out(adata, "log_compartment_total_counts", n_jobs=N_JOBS)
+    adata.X = regress_out_covariate(adata.X, adata.obs["log_compartment_total_counts"].values)
     sc.pp.scale(adata, max_value=SCALE_MAX_VALUE)
 
     sc.tl.pca(adata, n_comps=N_COMPS_PCA, svd_solver="auto")
@@ -150,7 +165,7 @@ def run_task(sample, label, force=False):
         "gene_set_file": os.path.basename(GENE_SET_FILE),
         "n_genes": int(adata.shape[1]),
         "normalization": "normalize_total(1e4) on full panel before gene subset, then log1p (layers['lognorm'])",
-        "depth_correction": f"regress_out(log10(compartment_total_counts + 1)) + scale(max_value={SCALE_MAX_VALUE})",
+        "depth_correction": f"OLS residuals on log10(compartment_total_counts + 1) + scale(max_value={SCALE_MAX_VALUE})",
         "n_comps_pca": N_COMPS_PCA,
         "n_pcs": N_PCS,
         "n_neighbors": N_NEIGHBORS,
