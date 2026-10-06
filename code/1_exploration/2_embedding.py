@@ -5,16 +5,27 @@ that are highly variable in >= 2 samples and cytoplasm-enriched in >= 3 of the f
 melanoma is not part of the enrichment analysis and is excluded here as well.
 
 One work unit = (sample, compartment): load the tumor cells, normalize_total(1e4) on the FULL panel (size factor =
-total transcripts of the compartment, stored in obs["compartment_total_counts"]), subset to the gene set, log1p,
-PCA(50), t-SNE and kNN/UMAP on the first N_PCS components, write one .h5ad. Normalization comes before the subset
-on purpose: normalizing the subset would use the target-gene count as the size factor, inflating cells with few
-target-gene transcripts and letting the abundant genes of the set dominate the denominator. The 10 units run in
-parallel as a SLURM array (2_embedding.sh). Per sample the outputs are
-    adata_{nuclear,cytoplasmic}_embedded.h5ad
+total transcripts of the compartment, stored in obs["compartment_total_counts"]), subset to the gene set, log1p
+(kept in layers["lognorm"] for DE and plots), regress out log10 compartment depth, scale, PCA(50), t-SNE and
+kNN/UMAP on the first N_PCS components, write one .h5ad. Normalization comes before the subset on purpose:
+normalizing the subset would use the target-gene count as the size factor, inflating cells with few target-gene
+transcripts and letting the abundant genes of the set dominate the denominator.
+
+Depth correction: the compartment vectors are sparse (BC cytoplasm: median 130 transcripts per cell on the panel,
+39 on the gene set), so normalize_total + log1p alone leaves PC1 = depth (Spearman 0.91 with log depth in BC) and
+Louvain then returns depth strata instead of substates. Regressing out log10(compartment_total_counts + 1) and
+z-scoring the genes (clipped at 10) removes this (Spearman -0.2) and yields interpretable clusters (proliferation,
+interferon/complement, hypoxia/lysosomal, ...). Spearman(PC1, log depth) is printed to the log as a sanity check;
+|rho| > 0.3 means the correction failed. All cells are kept (the notebooks assert the same cell set as adata_tumor);
+cells with (almost) no target-gene transcripts form a low-depth cluster that the clustering notebook flags.
+
+The 10 units run in parallel as a SLURM array (2_embedding.sh). Per sample the outputs are
+    adata_{nuclear,cytoplasmic}_embedded.h5ad      X = regressed + scaled, layers["lognorm"] = log-normalized
 
 Parameters (fixed, no sweep):
-    N_PCS = 30         ~600 genes; for sparse Xenium counts the variance curve is flat beyond ~30 PCs. The
-                       cumulative variance explained by the first N_PCS components is printed to the log.
+    N_PCS = 30         ~600 genes; 20 PCs / 15 neighbors give the same clusters in BC, so the graph is robust to
+                       these choices. After scaling the first N_PCS components explain only ~7% of the variance,
+                       which is expected for z-scored sparse data; the value is printed to the log.
     N_NEIGHBORS = 30   depends on the cell number (45k-220k tumor cells per sample): 15 (scanpy default) gives a
                        noisy graph at this scale, 50-100 over-smooths small subtypes.
 
@@ -34,6 +45,7 @@ import time
 import numpy as np
 import scanpy as sc
 from scipy import sparse
+from scipy.stats import spearmanr
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -45,6 +57,7 @@ GENE_SET_FILE = "../../output/1_exploration/enrichment/overlap_genes_3plus_sampl
 N_COMPS_PCA = 50
 N_PCS = 30
 N_NEIGHBORS = 30
+SCALE_MAX_VALUE = 10   # clip z-scores after scaling (scanpy convention)
 
 # sample-major: ids 0-1 BC, 2-3 OC, 4-5 CC, 6-7 LC, 8-9 Prostate; within a sample: nuclear, cytoplasmic
 TASKS = list(itertools.product(SAMPLES, COMPARTMENTS))
@@ -92,7 +105,18 @@ def build_compartment(adata_tumor, sample, label, genes, tag):
     print(f"{tag} subset to {adata.shape[1]} genes; {n_zero} cells with zero target-gene counts (kept)", flush=True)
 
     sc.pp.log1p(adata)
+    adata.layers["lognorm"] = adata.X.copy()  # log-normalized values for DE and expression plots
+
+    # depth correction: regress out log10 compartment depth and z-score the genes, otherwise PC1 = depth and the
+    # clusters are depth strata (see module docstring)
+    adata.obs["log_compartment_total_counts"] = np.log10(adata.obs["compartment_total_counts"].values + 1)
+    sc.pp.regress_out(adata, "log_compartment_total_counts", n_jobs=N_JOBS)
+    sc.pp.scale(adata, max_value=SCALE_MAX_VALUE)
+
     sc.tl.pca(adata, n_comps=N_COMPS_PCA, svd_solver="auto")
+    rho = spearmanr(adata.obsm["X_pca"][:, 0], adata.obs["log_compartment_total_counts"].values).correlation
+    print(f"{tag} Spearman(PC1, log10 compartment depth) = {rho:+.2f} (|rho| > 0.3 means depth still dominates)",
+          flush=True)
     return adata
 
 
@@ -112,7 +136,7 @@ def run_task(sample, label, force=False):
     t0 = time.time()
     adata = build_compartment(adata_tumor, sample, label, genes, tag)
     var_cum = float(np.cumsum(adata.uns["pca"]["variance_ratio"])[N_PCS - 1])
-    print(f"{tag} normalize/log1p/PCA({N_COMPS_PCA})  {time.time() - t0:.0f}s; "
+    print(f"{tag} normalize/log1p/regress_out/scale/PCA({N_COMPS_PCA})  {time.time() - t0:.0f}s; "
           f"first {N_PCS} PCs explain {var_cum:.1%} of variance", flush=True)
 
     t0 = time.time()
@@ -125,7 +149,8 @@ def run_task(sample, label, force=False):
     adata.uns["embedding_params"] = {
         "gene_set_file": os.path.basename(GENE_SET_FILE),
         "n_genes": int(adata.shape[1]),
-        "normalization": "normalize_total(1e4) on full panel before gene subset, then log1p",
+        "normalization": "normalize_total(1e4) on full panel before gene subset, then log1p (layers['lognorm'])",
+        "depth_correction": f"regress_out(log10(compartment_total_counts + 1)) + scale(max_value={SCALE_MAX_VALUE})",
         "n_comps_pca": N_COMPS_PCA,
         "n_pcs": N_PCS,
         "n_neighbors": N_NEIGHBORS,

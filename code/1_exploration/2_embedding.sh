@@ -18,7 +18,7 @@
 #   sbatch 2_embedding.sh                 # all 10 tasks
 #   sbatch --array=0-1 2_embedding.sh     # one sample (BC)
 #   sbatch --array=0-9%5 2_embedding.sh   # at most 5 tasks at a time
-# Existing outputs are skipped; add --force to the python line to recompute.
+# --force recomputes existing outputs (needed after the depth-correction change); drop it to only redo missing units.
 
 set -euo pipefail
 
@@ -58,6 +58,6 @@ for attempt in 1 2 3 4 5; do
     if [ "$attempt" -eq 5 ]; then echo "import scanpy failed 5 times, giving up"; exit 1; fi
 done
 
-python3 2_embedding.py --task "$SLURM_ARRAY_TASK_ID"
+python3 2_embedding.py --task "$SLURM_ARRAY_TASK_ID" --force
 
 echo "Job finished at $(date)"
