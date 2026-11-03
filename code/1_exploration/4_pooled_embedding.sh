@@ -12,12 +12,14 @@
 # Pooled cytoplasmic embedding of the tumor cells of the five Xenium 5K samples (4_pooled_embedding.py), the pooled
 # counterpart of 2_embedding.sh: one job, ~624k cells x 634 genes. Needs the same inputs as 2_embedding.sh (data of
 # the five samples on HGCC, gene set from 'make enrich-push').
-# Submit from this folder:
-#   sbatch 4_pooled_embedding.sh
-# Afterwards, locally:  make out-pull   (pulls output/1_exploration/pooled/adata_pooled_cytoplasmic_embedded.h5ad)
+# Submit from this folder, with the correction mode as the only argument (default none):
+#   sbatch 4_pooled_embedding.sh            # uncorrected pool            -> output/1_exploration/pooled/
+#   sbatch 4_pooled_embedding.sh sample     # per-sample transform, pooled PCA -> output/1_exploration/pooled_sample_corrected/
+# Afterwards, locally:  make out-pull   (pulls <folder>/adata_pooled_cytoplasmic_embedded.h5ad)
 # The output is skipped if it exists; add --force to the python call below to recompute, --no-tsne to skip t-SNE.
 
 set -euo pipefail
+CORRECTION=${1:-none}
 
 module purge
 module load miniconda3
@@ -30,6 +32,7 @@ mkdir -p logs
 echo "Host: $(hostname)"
 echo "Job:  $SLURM_JOB_ID"
 echo "PWD:  $(pwd)"
+echo "Correction: $CORRECTION"
 which python
 python --version
 
@@ -50,6 +53,6 @@ for attempt in 1 2 3 4 5; do
     if [ "$attempt" -eq 5 ]; then echo "import scanpy failed 5 times, giving up"; exit 1; fi
 done
 
-python3 4_pooled_embedding.py
+python3 4_pooled_embedding.py --correction "$CORRECTION"
 
 echo "Job finished at $(date)"

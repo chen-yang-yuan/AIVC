@@ -10,22 +10,35 @@ Procedure (cytoplasmic compartment only; functions and parameters imported from 
    (size factor = total cytoplasmic transcripts, obs["compartment_total_counts"]), subset to the gene set
    (overlap_genes_3plus_samples.npy), log1p -> layers["lognorm"]. obs keeps sample, cell_id, coordinates, areas, cell
    type and depth; obs_names = "<sample>:<cell_id>" so that cells stay unique after pooling.
-2. Concatenate the five objects (same gene order asserted), then on the POOLED matrix: regress out
-   log10(compartment_total_counts + 1), scale (z-score per gene, clipped at 10), PCA(50), t-SNE and kNN / UMAP on the
-   first N_PCS components. The regression intercept is the pooled gene mean, so differences between the sample means
-   are deliberately left in: nothing is regressed on the sample, because the batch effect between samples is what
-   the pooled analysis examines (3rd question of 4_pooled.ipynb).
-3. Write ../../output/1_exploration/pooled/adata_pooled_cytoplasmic_embedded.h5ad: X = regressed + scaled,
-   layers["lognorm"], obsm X_pca / X_tsne / X_umap, the kNN graph in obsp, uns["embedding_params"].
+2. Depth correction, in one of two modes (--correction):
+   - none (default; output folder pooled/): concatenate the five objects (same gene order asserted), then on the
+     POOLED matrix regress out log10(compartment_total_counts + 1) and scale (z-score per gene, clipped at 10). The
+     regression intercept is the pooled gene mean and the scaling centres on it, so the differences between the
+     sample means are deliberately left in: nothing is corrected for sample, because the batch effect between
+     samples is what this run examines (3rd question of 4_pooled.ipynb). Result 2026-11-03: the samples separate
+     completely, driven by 10-20 lineage genes (H19, XBP1, NKX3-1, SORD, EPDR1, ...) whose sample means differ by
+     1-2 z-units.
+   - sample (output folder pooled_sample_corrected/): the depth regression and the scaling run WITHIN each sample,
+     exactly the two calls of build_compartment() in 2_embedding.py, and the five transformed matrices are stacked.
+     Every gene then has mean 0 and unit variance within every sample, so sample-level mean differences and the
+     sample-specific depth slopes are removed before pooling (the pooled X equals the X of the five per-sample
+     adata_cytoplasmic_embedded.h5ad objects). Differences between samples in average program activity are
+     removed with them, so pooled label frequencies are relative within each sample; differences in the
+     within-sample covariance structure are not corrected. The uncorrected run stays the reference for the raw
+     sample effect.
+   Then PCA(50), t-SNE and kNN / UMAP on the first N_PCS components, identical in both modes.
+3. Write <output folder>/adata_pooled_cytoplasmic_embedded.h5ad: X = regressed + scaled, layers["lognorm"],
+   obsm X_pca / X_tsne / X_umap, the kNN graph in obsp, uns["embedding_params"] (records the mode).
 
 Runs as one SLURM job (4_pooled_embedding.sh; ~624k cells x 634 genes, dense float32 = 1.6 GB, 96 GB requested).
 Spearman(PC1-5, log depth) is printed as the depth-correction check (|rho| > 0.3 means the correction failed), and the
 per-sample cell numbers must add up to the pooled number.
 
 Usage (from this folder):
-    python3 4_pooled_embedding.py                # all five samples, with t-SNE
-    python3 4_pooled_embedding.py --no-tsne      # skip t-SNE (the slowest step)
-    python3 4_pooled_embedding.py --force        # recompute even if the output exists
+    python3 4_pooled_embedding.py                      # uncorrected pool, with t-SNE -> pooled/
+    python3 4_pooled_embedding.py --correction sample  # per-sample transform, pooled PCA -> pooled_sample_corrected/
+    python3 4_pooled_embedding.py --no-tsne            # skip t-SNE (the slowest step)
+    python3 4_pooled_embedding.py --force              # recompute even if the output exists
 """
 import argparse
 import importlib
@@ -45,17 +58,20 @@ sc.settings.verbosity = 0
 emb = importlib.import_module("2_embedding")   # per-sample embedding: same functions and parameters
 
 SAMPLES = emb.SAMPLES
-OUTPUT_DIR = "../../output/1_exploration/pooled/"
-OUTPUT_FILE = OUTPUT_DIR + "adata_pooled_cytoplasmic_embedded.h5ad"
+OUTPUT_DIRS = {"none": "../../output/1_exploration/pooled/",
+               "sample": "../../output/1_exploration/pooled_sample_corrected/"}
+OUTPUT_NAME = "adata_pooled_cytoplasmic_embedded.h5ad"
 OBS_COLS = ["cell_id", "global_x", "global_y", "cell_area", "nucleus_area", "cell_type_merged"]
 
 N_JOBS = int(os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count() or 1))
 sc.settings.n_jobs = N_JOBS
 
 
-def load_sample_lognorm(sample, genes):
-    """Tumor cells of one sample on the cytoplasmic compartment: normalize_total on the full panel, gene subset, log1p.
-    Returns an AnnData with X = log-normalized (sparse) and the metadata columns needed downstream."""
+def load_sample_lognorm(sample, genes, correction="none"):
+    """Tumor cells of one sample on the cytoplasmic compartment: normalize_total on the full panel, gene subset, log1p
+    (kept in layers["lognorm"]). With correction="sample", X is additionally depth-regressed and scaled within the
+    sample (build_compartment() of 2_embedding.py); otherwise X stays the sparse log-normalized matrix.
+    Returns an AnnData with the metadata columns needed downstream."""
     tag = f"[{sample}]"
     t0 = time.time()
     adata_tumor = emb.load_tumor(sample)
@@ -73,31 +89,47 @@ def load_sample_lognorm(sample, genes):
     adata = adata[:, mask].copy()
     n_zero = int((np.asarray(adata.X.sum(axis=1)).ravel() == 0).sum())
     sc.pp.log1p(adata)
+    adata.layers["lognorm"] = adata.X.copy()
+    adata.obs["log_compartment_total_counts"] = np.log10(adata.obs["compartment_total_counts"].values + 1)
+
+    if correction == "sample":
+        # per-sample depth correction and scaling, the same two calls as build_compartment() in 2_embedding.py:
+        # removes this sample's gene means and depth slopes, so nothing sample-specific at the mean level is pooled
+        adata.X = emb.regress_out_covariate(adata.X, adata.obs["log_compartment_total_counts"].values)
+        sc.pp.scale(adata, max_value=emb.SCALE_MAX_VALUE)
 
     adata.obs["sample"] = sample
     adata.obs["cell_id"] = adata.obs["cell_id"].astype(str)
     adata.obs_names = sample + ":" + adata.obs["cell_id"].values
     assert adata.obs_names.is_unique, f"{tag} duplicated cell ids"
     print(f"{tag} {adata.shape[0]} tumor cells, {adata.shape[1]} genes; {n_zero} cells with zero target-gene counts (kept); "
-          f"median cytoplasmic depth {np.median(adata.obs['compartment_total_counts']):.0f}  {time.time() - t0:.0f}s", flush=True)
+          f"median cytoplasmic depth {np.median(adata.obs['compartment_total_counts']):.0f}"
+          f"{'; depth regressed and scaled within the sample' if correction == 'sample' else ''}  {time.time() - t0:.0f}s",
+          flush=True)
     return adata
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--correction", choices=["none", "sample"], default="none",
+                   help="none: depth regression and scaling on the pooled matrix (no sample correction); "
+                        "sample: depth regression and scaling within each sample, then pooled PCA")
     p.add_argument("--no-tsne", action="store_true", help="skip t-SNE")
     p.add_argument("--force", action="store_true", help="recompute even if the output exists")
     args = p.parse_args()
 
-    if os.path.exists(OUTPUT_FILE) and not args.force:
-        print(f"{OUTPUT_FILE} exists, skipping (use --force to recompute)", flush=True)
+    output_dir = OUTPUT_DIRS[args.correction]
+    output_file = output_dir + OUTPUT_NAME
+    if os.path.exists(output_file) and not args.force:
+        print(f"{output_file} exists, skipping (use --force to recompute)", flush=True)
         return
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    print(f"n_jobs={N_JOBS}; samples={SAMPLES}; n_pcs={emb.N_PCS}, n_neighbors={emb.N_NEIGHBORS}", flush=True)
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"correction={args.correction}; n_jobs={N_JOBS}; samples={SAMPLES}; n_pcs={emb.N_PCS}, "
+          f"n_neighbors={emb.N_NEIGHBORS}", flush=True)
     genes = emb.load_gene_set()
 
-    # 1. per-sample log-normalized objects, pooled into one
-    parts = [load_sample_lognorm(sample, genes) for sample in SAMPLES]
+    # 1. per-sample objects (log-normalized; with --correction sample also depth-regressed and scaled), pooled into one
+    parts = [load_sample_lognorm(sample, genes, args.correction) for sample in SAMPLES]
     for part in parts[1:]:
         assert (part.var_names == parts[0].var_names).all(), "gene order differs between samples"
     adata = ad.concat(parts, join="inner", merge="same", index_unique=None)
@@ -105,15 +137,17 @@ def main():
     n_per_sample = {sample: int(part.shape[0]) for sample, part in zip(SAMPLES, parts)}
     del parts
     assert adata.shape[0] == sum(n_per_sample.values())
+    assert "lognorm" in adata.layers
     adata.obs["sample"] = adata.obs["sample"].astype("category")
-    adata.layers["lognorm"] = adata.X.copy()
     print(f"[pooled] {adata.shape[0]} cells x {adata.shape[1]} genes: {n_per_sample}", flush=True)
 
-    # 2. depth correction and embedding on the pooled matrix (2_embedding.py procedure)
+    # 2. depth correction (pooled mode only; already done per sample otherwise) and embedding (2_embedding.py procedure)
     t0 = time.time()
-    adata.obs["log_compartment_total_counts"] = np.log10(adata.obs["compartment_total_counts"].values + 1)
-    adata.X = emb.regress_out_covariate(adata.X, adata.obs["log_compartment_total_counts"].values)
-    sc.pp.scale(adata, max_value=emb.SCALE_MAX_VALUE)
+    if args.correction == "none":
+        adata.X = emb.regress_out_covariate(adata.X, adata.obs["log_compartment_total_counts"].values)
+        sc.pp.scale(adata, max_value=emb.SCALE_MAX_VALUE)
+    else:
+        adata.X = np.asarray(adata.X, dtype=np.float32)
     sc.tl.pca(adata, n_comps=emb.N_COMPS_PCA, svd_solver="arpack")
     for k in range(5):
         rho = spearmanr(adata.obsm["X_pca"][:, k], adata.obs["log_compartment_total_counts"].values).correlation
@@ -138,15 +172,18 @@ def main():
         "samples": list(SAMPLES),
         "n_cells_per_sample": n_per_sample,
         "normalization": "per sample: normalize_total(1e4) on full panel before gene subset, then log1p (layers['lognorm'])",
-        "depth_correction": f"pooled OLS residuals on log10(compartment_total_counts + 1) + scale(max_value={emb.SCALE_MAX_VALUE}); "
-                            "no correction for sample",
+        "depth_correction": (f"{'pooled' if args.correction == 'none' else 'per-sample'} OLS residuals on "
+                             f"log10(compartment_total_counts + 1) + scale(max_value={emb.SCALE_MAX_VALUE})"),
+        "sample_correction": ("none: sample means left in" if args.correction == "none" else
+                              "per-sample depth regression and scaling before pooling (gene means and depth slopes "
+                              "removed within each sample), then pooled PCA / kNN / UMAP / t-SNE"),
         "n_comps_pca": emb.N_COMPS_PCA,
         "n_pcs": emb.N_PCS,
         "n_neighbors": emb.N_NEIGHBORS,
         "tsne": not args.no_tsne,
     }
-    adata.write(OUTPUT_FILE)
-    print(f"[pooled] written {OUTPUT_FILE}", flush=True)
+    adata.write(output_file)
+    print(f"[pooled] written {output_file}", flush=True)
 
 
 if __name__ == "__main__":
