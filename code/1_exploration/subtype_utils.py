@@ -43,6 +43,12 @@ BORDER_DIST = 25        # annotation: um; an EMT/stroma cluster whose median dis
 RADIUS = 30             # characteristics: um; neighbourhood radius for the cell-type composition around each tumor cell
 MIN_PROGRAM_GENES = 5   # programs with fewer genes in the gene set are dropped
 
+# Compartment tag of the output file names and figure titles ("cytoplasmic" for 3_clustering.ipynb and the pooled
+# cytoplasmic notebooks). The nuclear pooled notebook sets subtype_utils.COMPARTMENT = "nuclear" after the import, so
+# that its tables are named *_nuclear.csv; the obs column names (subtype_louvain_cyto, cyto_depth, cyto_target_counts)
+# are internal to these functions and keep their names, i.e. they then hold the nuclear quantities.
+COMPARTMENT = "cytoplasmic"
+
 # Reference cell groups for the spatial context (names of obs["cell_type_merged"]; verified by the notebooks)
 spatial_refs = {"immune": ["CD4+ T cell", "CD8+ T cell", "T cell", "B cell", "Dendritic cell", "Myeloid cell", "Mast cell"],
                 "tcell": ["CD4+ T cell", "CD8+ T cell", "T cell"],
@@ -224,7 +230,7 @@ def resolution_sweep(adata_tumor_cyto, scores_z, label_programs, cfg, paths):
         sweep.append({"resolution": res, "n_clusters": len(sizes), "min_cluster_size": int(sizes.min()),
                       "n_program_labels": resolved.nunique(), "programs": ", ".join(sorted(resolved.unique()))})
     sweep = pd.DataFrame(sweep)
-    sweep.to_csv(paths["clustering"] + "resolution_sweep_cytoplasmic.csv", index=False)
+    sweep.to_csv(paths["clustering"] + f"resolution_sweep_{COMPARTMENT}.csv", index=False)
     res_suggested = sweep.loc[sweep["n_program_labels"] == sweep["n_program_labels"].max(), "resolution"].min()
     print(sweep.to_string(index=False))
     print(f"Suggested resolution: {res_suggested} (config uses {cfg['res_cyto']})")
@@ -235,7 +241,7 @@ def cluster(adata_tumor_cyto, adata_tumor, res_cyto):
     """Louvain at the reviewed resolution -> subtype_louvain (embedded object) and subtype_louvain_cyto (metadata object)."""
     sc.tl.louvain(adata_tumor_cyto, resolution=res_cyto, key_added="subtype_louvain")
     adata_tumor.obs["subtype_louvain_cyto"] = adata_tumor_cyto.obs["subtype_louvain"].values
-    print(f"Number of clusters (cytoplasmic, resolution {res_cyto}): {adata_tumor.obs['subtype_louvain_cyto'].nunique()}")
+    print(f"Number of clusters ({COMPARTMENT}, resolution {res_cyto}): {adata_tumor.obs['subtype_louvain_cyto'].nunique()}")
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -284,7 +290,7 @@ def cluster_statistics(adata_tumor, adata_tumor_cyto, paths):
 
     for k in range(5):
         rho = spearmanr(adata_tumor_cyto.obsm["X_pca"][:, k], np.log10(depth + 1)).correlation
-        print(f"Spearman(PC{k + 1}, log10 cytoplasmic depth) = {rho:+.2f}")
+        print(f"Spearman(PC{k + 1}, log10 {COMPARTMENT} depth) = {rho:+.2f}")
 
     groups = adata_tumor.obs.groupby("subtype_louvain_cyto", observed=True)
     cluster_stats = pd.DataFrame({
@@ -297,7 +303,7 @@ def cluster_statistics(adata_tumor, adata_tumor_cyto, paths):
     })
     cluster_stats["low_depth"] = cluster_stats["median_cyto_target_counts"] < MIN_TARGET_COUNTS
     cluster_stats = cluster_stats.round(1)
-    cluster_stats.to_csv(paths["clustering"] + "cluster_stats_cytoplasmic.csv")
+    cluster_stats.to_csv(paths["clustering"] + f"cluster_stats_{COMPARTMENT}.csv")
     print(cluster_stats.to_string())
     return cluster_stats
 
@@ -323,7 +329,7 @@ def differential_expression(adata_tumor_cyto, paths):
         df = sc.get.rank_genes_groups_df(adata_tumor_cyto, group=cl)
         df = df[(df["logfoldchanges"] > LOGFC_THR) & (df["pvals_adj"] < 0.05) & (df["pct_nz_group"] > PCT_THR)]
         df = df.sort_values("scores", ascending=False)
-        df.to_csv(paths["DE"] + f"DE_cytoplasmic_cluster_{cl}.csv", index=False)
+        df.to_csv(paths["DE"] + f"DE_{COMPARTMENT}_cluster_{cl}.csv", index=False)
         de_dict[cl] = df
         print(f"Cluster {cl}: {df.shape[0]} marker genes; top: {', '.join(df['names'].head(8))}")
     return de_dict
@@ -391,7 +397,7 @@ def annotate(adata_tumor_cyto, adata_tumor, de_dict, cluster_stats, scores_z, pr
                      "score_program": tp.loc[cl, "top_program"], "score_z": tp.loc[cl, "top_z"],
                      "top_markers": ", ".join(de_dict[cl]["names"].head(10))})
     annotation = pd.DataFrame(rows).set_index("cluster")
-    annotation.to_csv(paths["annotation"] + "subtype_annotation_cytoplasmic.csv")
+    annotation.to_csv(paths["annotation"] + f"subtype_annotation_{COMPARTMENT}.csv")
 
     # cluster -> label; the category order and colours are fixed across samples
     label_map = annotation["label"].to_dict()
@@ -471,12 +477,12 @@ def summarize_characteristics(adata_tumor, paths, extra_cell_cols=()):
     summary = groups[char_cols].median()
     summary.insert(0, "n_cells", groups.size())
     iqr = (groups[char_cols].quantile(0.75) - groups[char_cols].quantile(0.25)).add_suffix("_iqr")
-    pd.concat([summary, iqr], axis=1).round(4).to_csv(paths["characteristics"] + "subtype_characteristics_cytoplasmic.csv")
+    pd.concat([summary, iqr], axis=1).round(4).to_csv(paths["characteristics"] + f"subtype_characteristics_{COMPARTMENT}.csv")
 
     cell_cols = list(extra_cell_cols) + ["cell_id", "subtype_louvain_cyto", "subtype_label"] + \
                 [c for c in adata_tumor.obs.columns if c.startswith("score_")] + \
                 [f"dist_{name}" for name in spatial_refs] + [c for c in char_cols if not c.startswith("score_")]
-    adata_tumor.obs[cell_cols].to_csv(paths["characteristics"] + "cell_annotations_cytoplasmic.csv", index=False)
+    adata_tumor.obs[cell_cols].to_csv(paths["characteristics"] + f"cell_annotations_{COMPARTMENT}.csv", index=False)
 
     pd.set_option("display.max_columns", 40)
     print(summary.round(3).to_string())
@@ -503,10 +509,10 @@ def make_figures(obs_all, adata_tumor, adata_tumor_cyto, de_dict, annotation, ca
 
     # UMAPs and PCA loadings
     set_figsize((8, 8))
-    sc.pl.umap(adata_tumor_cyto, color="subtype_louvain", size=10, palette=color_dct, show=False, title="Cytoplasmic expression")
+    sc.pl.umap(adata_tumor_cyto, color="subtype_louvain", size=10, palette=color_dct, show=False, title=f"{COMPARTMENT.capitalize()} expression")
     plt.savefig(paths["clustering"] + "umap_clustering.png", dpi=300, bbox_inches="tight")
     plt.close()
-    sc.pl.umap(adata_tumor_cyto, color="subtype_label", size=10, palette=label_palette, show=False, title="Cytoplasmic expression")
+    sc.pl.umap(adata_tumor_cyto, color="subtype_label", size=10, palette=label_palette, show=False, title=f"{COMPARTMENT.capitalize()} expression")
     plt.savefig(paths["clustering"] + "umap_subtype_label.png", dpi=300, bbox_inches="tight")
     plt.close()
     sc.pl.pca_loadings(adata_tumor_cyto, components=[1, 2, 3, 4, 5], show=False)
@@ -576,7 +582,7 @@ def make_figures(obs_all, adata_tumor, adata_tumor_cyto, de_dict, annotation, ca
             plt.close()
 
     # box plots of the characteristics per label (outliers hidden)
-    box_cols = {"score_Hypoxia": ("Hypoxia score (hallmark, cytoplasmic)", ""),
+    box_cols = {"score_Hypoxia": (f"Hypoxia score (hallmark, {COMPARTMENT})", ""),
                 "hypoxia_ssgsea_cyto": ("Hypoxia score (ssGSEA, cytoplasmic)", ""),
                 "score_Interferon": ("Interferon score", ""),
                 "proximity_immune": ("Proximity to nearest immune cell", "-log10(um + 1)"),

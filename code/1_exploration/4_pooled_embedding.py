@@ -1,13 +1,20 @@
-"""Embed the tumor cells of the five Xenium 5K samples POOLED on the cytoplasmic expression of the gene set.
+"""Embed the tumor cells of the five Xenium 5K samples POOLED on the cytoplasmic (or nuclear) expression of the gene set.
 
 Purpose: test whether the subtypes found per sample (3_clustering.ipynb) are genuine cross-sample substates or
 per-sample artifacts. The pooled object is processed with exactly the per-sample procedure of 2_embedding.py, only
 on all cells at once; 4_pooled.ipynb then clusters and annotates it with the per-sample code (subtype_utils.py) and
 compares the pooled labels with the per-sample labels cell by cell.
 
-Procedure (cytoplasmic compartment only; functions and parameters imported from 2_embedding.py)
-1. Per sample: load the tumor cells and the cytoplasmic compartment matrix, normalize_total(1e4) on the FULL panel
-   (size factor = total cytoplasmic transcripts, obs["compartment_total_counts"]), subset to the gene set
+Compartment (--compartment, default cytoplasmic): the same procedure runs on the NUCLEAR compartment matrix of the
+same 634 genes (--compartment nuclear, output folder with the suffix _nuclear, object
+adata_pooled_nuclear_embedded.h5ad) to test whether the nuclear expression of the cytoplasm-enriched genes carries
+the same substates; 4_pooled_sample_corrected_nuclear.ipynb compares the nuclear pooled labels with the cytoplasmic
+sample-corrected pooled labels cell by cell. Only the matrix file and the size factor (total transcripts of that
+compartment) change.
+
+Procedure (one compartment; functions and parameters imported from 2_embedding.py)
+1. Per sample: load the tumor cells and the compartment matrix, normalize_total(1e4) on the FULL panel
+   (size factor = total transcripts of the compartment, obs["compartment_total_counts"]), subset to the gene set
    (overlap_genes_3plus_samples.npy), log1p -> layers["lognorm"]. obs keeps sample, cell_id, coordinates, areas, cell
    type and depth; obs_names = "<sample>:<cell_id>" so that cells stay unique after pooling.
 2. Depth correction, in one of two modes (--correction):
@@ -27,8 +34,8 @@ Procedure (cytoplasmic compartment only; functions and parameters imported from 
      within-sample covariance structure are not corrected. The uncorrected run stays the reference for the raw
      sample effect.
    Then PCA(50), t-SNE and kNN / UMAP on the first N_PCS components, identical in both modes.
-3. Write <output folder>/adata_pooled_cytoplasmic_embedded.h5ad: X = regressed + scaled, layers["lognorm"],
-   obsm X_pca / X_tsne / X_umap, the kNN graph in obsp, uns["embedding_params"] (records the mode).
+3. Write <output folder>/adata_pooled_<compartment>_embedded.h5ad: X = regressed + scaled, layers["lognorm"],
+   obsm X_pca / X_tsne / X_umap, the kNN graph in obsp, uns["embedding_params"] (records mode and compartment).
 
 Runs as one SLURM job (4_pooled_embedding.sh; ~624k cells x 634 genes, dense float32 = 1.6 GB, 96 GB requested).
 Spearman(PC1-5, log depth) is printed as the depth-correction check (|rho| > 0.3 means the correction failed), and the
@@ -37,6 +44,7 @@ per-sample cell numbers must add up to the pooled number.
 Usage (from this folder):
     python3 4_pooled_embedding.py                      # uncorrected pool, with t-SNE -> pooled/
     python3 4_pooled_embedding.py --correction sample  # per-sample transform, pooled PCA -> pooled_sample_corrected/
+    python3 4_pooled_embedding.py --correction sample --compartment nuclear   # nuclear counterpart -> pooled_sample_corrected_nuclear/
     python3 4_pooled_embedding.py --no-tsne            # skip t-SNE (the slowest step)
     python3 4_pooled_embedding.py --force              # recompute even if the output exists
 """
@@ -58,31 +66,41 @@ sc.settings.verbosity = 0
 emb = importlib.import_module("2_embedding")   # per-sample embedding: same functions and parameters
 
 SAMPLES = emb.SAMPLES
+COMPARTMENTS = emb.COMPARTMENTS   # ["nuclear", "cytoplasmic"]
 OUTPUT_DIRS = {"none": "../../output/1_exploration/pooled/",
                "sample": "../../output/1_exploration/pooled_sample_corrected/"}
-OUTPUT_NAME = "adata_pooled_cytoplasmic_embedded.h5ad"
+
+
+def output_dir(correction, compartment):
+    """pooled/ or pooled_sample_corrected/ for the cytoplasmic compartment, with the suffix _nuclear for the nuclear one."""
+    return OUTPUT_DIRS[correction].rstrip("/") + ("" if compartment == "cytoplasmic" else f"_{compartment}") + "/"
+
+
+def output_name(compartment):
+    return f"adata_pooled_{compartment}_embedded.h5ad"
+
 OBS_COLS = ["cell_id", "global_x", "global_y", "cell_area", "nucleus_area", "cell_type_merged"]
 
 N_JOBS = int(os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count() or 1))
 sc.settings.n_jobs = N_JOBS
 
 
-def load_sample_lognorm(sample, genes, correction="none"):
-    """Tumor cells of one sample on the cytoplasmic compartment: normalize_total on the full panel, gene subset, log1p
+def load_sample_lognorm(sample, genes, correction="none", compartment="cytoplasmic"):
+    """Tumor cells of one sample on one compartment: normalize_total on the full panel, gene subset, log1p
     (kept in layers["lognorm"]). With correction="sample", X is additionally depth-regressed and scaled within the
     sample (build_compartment() of 2_embedding.py); otherwise X stays the sparse log-normalized matrix.
     Returns an AnnData with the metadata columns needed downstream."""
-    tag = f"[{sample}]"
+    tag = f"[{sample} {compartment}]"
     t0 = time.time()
     adata_tumor = emb.load_tumor(sample)
     processed_path = f"../../data/{sample}/processed_data/"
-    compartment_expression = sparse.load_npz(processed_path + "cytoplasmic_expression_matrix.npz")
+    compartment_expression = sparse.load_npz(processed_path + f"{compartment}_expression_matrix.npz")
     assert compartment_expression.shape[0] == adata_tumor.shape[0], \
         "compartment_expression should have the same number of cells as adata_tumor"
     adata = sc.AnnData(X=compartment_expression, obs=adata_tumor.obs[OBS_COLS].copy(), var=adata_tumor.var[[]].copy())
     del adata_tumor
 
-    # size factor = total cytoplasmic transcripts over the full panel, computed BEFORE the gene subset (2_embedding.py)
+    # size factor = total transcripts of the compartment over the full panel, computed BEFORE the gene subset (2_embedding.py)
     sc.pp.normalize_total(adata, target_sum=1e4, key_added="compartment_total_counts")
     mask = adata.var_names.isin(genes)
     assert mask.sum() == len(genes), f"{len(genes) - mask.sum()} genes of the set are missing from the panel"
@@ -103,7 +121,7 @@ def load_sample_lognorm(sample, genes, correction="none"):
     adata.obs_names = sample + ":" + adata.obs["cell_id"].values
     assert adata.obs_names.is_unique, f"{tag} duplicated cell ids"
     print(f"{tag} {adata.shape[0]} tumor cells, {adata.shape[1]} genes; {n_zero} cells with zero target-gene counts (kept); "
-          f"median cytoplasmic depth {np.median(adata.obs['compartment_total_counts']):.0f}"
+          f"median {compartment} depth {np.median(adata.obs['compartment_total_counts']):.0f}"
           f"{'; depth regressed and scaled within the sample' if correction == 'sample' else ''}  {time.time() - t0:.0f}s",
           flush=True)
     return adata
@@ -114,22 +132,24 @@ def main():
     p.add_argument("--correction", choices=["none", "sample"], default="none",
                    help="none: depth regression and scaling on the pooled matrix (no sample correction); "
                         "sample: depth regression and scaling within each sample, then pooled PCA")
+    p.add_argument("--compartment", choices=COMPARTMENTS, default="cytoplasmic",
+                   help="compartment matrix to embed (default cytoplasmic); nuclear writes to <folder>_nuclear/")
     p.add_argument("--no-tsne", action="store_true", help="skip t-SNE")
     p.add_argument("--force", action="store_true", help="recompute even if the output exists")
     args = p.parse_args()
 
-    output_dir = OUTPUT_DIRS[args.correction]
-    output_file = output_dir + OUTPUT_NAME
+    out_dir = output_dir(args.correction, args.compartment)
+    output_file = out_dir + output_name(args.compartment)
     if os.path.exists(output_file) and not args.force:
         print(f"{output_file} exists, skipping (use --force to recompute)", flush=True)
         return
-    os.makedirs(output_dir, exist_ok=True)
-    print(f"correction={args.correction}; n_jobs={N_JOBS}; samples={SAMPLES}; n_pcs={emb.N_PCS}, "
+    os.makedirs(out_dir, exist_ok=True)
+    print(f"correction={args.correction}; compartment={args.compartment}; n_jobs={N_JOBS}; samples={SAMPLES}; n_pcs={emb.N_PCS}, "
           f"n_neighbors={emb.N_NEIGHBORS}", flush=True)
     genes = emb.load_gene_set()
 
     # 1. per-sample objects (log-normalized; with --correction sample also depth-regressed and scaled), pooled into one
-    parts = [load_sample_lognorm(sample, genes, args.correction) for sample in SAMPLES]
+    parts = [load_sample_lognorm(sample, genes, args.correction, args.compartment) for sample in SAMPLES]
     for part in parts[1:]:
         assert (part.var_names == parts[0].var_names).all(), "gene order differs between samples"
     adata = ad.concat(parts, join="inner", merge="same", index_unique=None)
@@ -151,7 +171,7 @@ def main():
     sc.tl.pca(adata, n_comps=emb.N_COMPS_PCA, svd_solver="arpack")
     for k in range(5):
         rho = spearmanr(adata.obsm["X_pca"][:, k], adata.obs["log_compartment_total_counts"].values).correlation
-        print(f"[pooled] Spearman(PC{k + 1}, log10 cytoplasmic depth) = {rho:+.2f} (|rho| > 0.3 means depth still dominates)", flush=True)
+        print(f"[pooled] Spearman(PC{k + 1}, log10 {args.compartment} depth) = {rho:+.2f} (|rho| > 0.3 means depth still dominates)", flush=True)
     var_cum = float(np.cumsum(adata.uns["pca"]["variance_ratio"])[emb.N_PCS - 1])
     print(f"[pooled] regress_out/scale/PCA({emb.N_COMPS_PCA})  {time.time() - t0:.0f}s; first {emb.N_PCS} PCs explain {var_cum:.1%} of variance", flush=True)
 
@@ -167,6 +187,7 @@ def main():
 
     # 3. write
     adata.uns["embedding_params"] = {
+        "compartment": args.compartment,
         "gene_set_file": os.path.basename(emb.GENE_SET_FILE),
         "n_genes": int(adata.shape[1]),
         "samples": list(SAMPLES),
