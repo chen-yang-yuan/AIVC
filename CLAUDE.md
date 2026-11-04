@@ -34,7 +34,7 @@ make env-create          # conda env AIVC-env from code/utils/env.yaml
 make env-update          # update --prune, or create if missing
 make push                # DEFAULT GOAL: git add -A, commit "Auto-commit: <timestamp>", push origin main
 make data-push-Xenium    # rsync data/Xenium* -> HGCC cluster (~/hulab/projects/AIVC/data)
-make out-pull            # rsync HGCC output/ -> local output/
+make out-pull            # rsync HGCC output/ -> local output/ (never overwrites newer local files)
 make pull_granule_data   # pull processed_data/granule_adata.h5ad files from HGCC
 ```
 

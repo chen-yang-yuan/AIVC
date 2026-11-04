@@ -59,6 +59,10 @@ REMOTE_OUT  := $(HGCC_BASE)/output
 
 RSYNC_COMMON := -avh --progress
 RSYNC_FAST := $(RSYNC_COMMON) --partial --inplace
+# Pulls of output/ never replace a local file that is newer than the HGCC copy: the pooled notebooks of
+# code/1_exploration rewrite their embedded .h5ad in place with the subtype labels, and a plain pull restored the
+# HGCC original over such a file (2026-11-03). A re-run on HGCC (newer there) still replaces the local copy.
+RSYNC_PULL := $(RSYNC_FAST) --update
 
 # Push only Xenium* subfolders from local data -> HGCC
 data-push-Xenium:
@@ -78,10 +82,10 @@ data-push:
 	  "$(LOCAL_DATA)"/ \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_DATA)"/
 
-# Pull HGCC output -> local output
+# Pull HGCC output -> local output (local files newer than the HGCC copy are kept, see RSYNC_PULL)
 out-pull:
 	@mkdir -p "$(LOCAL_OUT)"
-	rsync $(RSYNC_FAST) \
+	rsync $(RSYNC_PULL) \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
 
@@ -128,7 +132,7 @@ data-push-dry:
 
 out-pull-dry:
 	@mkdir -p "$(LOCAL_OUT)"
-	rsync $(RSYNC_FAST) --dry-run \
+	rsync $(RSYNC_PULL) --dry-run \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)"/ \
 	  "$(LOCAL_OUT)"/
 
