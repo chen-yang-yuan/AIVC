@@ -7,8 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AIVC is an AI-based virtual tumor cell model trained on subcellular-resolution Xenium 5K spatial transcriptomics.
 Given a tumor cell's gene expression and/or H&E patch (plus spatial context), it will predict environmental stress
 scores and the cell's subcellular response (pathway activity in nucleus, cytoplasm, and RNA granules), and support
-counterfactual "virtual stress" simulation. The code currently covers data processing and outcome definition only;
-model implementation has not started (`code/3_model/` holds foundation-model trial runs).
+counterfactual "virtual stress" simulation. The design is being reframed as a predictive, interpretable model of the
+cytoplasmic activity of a data-selected target gene set (state and open decisions in the Tracker). The code covers
+data processing, outcome definition and the completed exploratory stage; model implementation has not started
+(`code/3_model/` holds foundation-model trial runs).
 
 ## Documentation rule
 
@@ -20,7 +22,14 @@ model implementation has not started (`code/3_model/` holds foundation-model tri
     open questions, dated decision log.
   - `plans/fig1_exploration.md` — the Fig. 1 exploratory analysis in `code/2_exploration/`: nuclear vs cytoplasmic
     expression of tumor cells in the six Xenium 5K samples, artifact controls, association with the model inputs,
-    candidate target gene set.
+    first per-gene candidate list.
+  - `plans/subtype_exploration.md` — the tumor-cell subtype exploration in `code/1_exploration/`: the 634-gene target
+    set (cytoplasm-enriched highly variable genes) and its sensitivity analysis, per-sample,
+    uncorrected pooled and sample-corrected pooled (cytoplasmic and nuclear) subtyping, whether the substates are
+    genuine, the sample effect, and the implications for the outcome variable.
+  - `plans/stress_substate_exploration.md` — the stress vs target-gene-substate analysis: stress axes and groups
+    for the five samples, correspondence of the cytoplasmic and nuclear substates with stress, and whether
+    cytoplasmic expression of the target genes carries more stress information than nuclear expression.
   - Future stages (model implementation, simulation studies, real data analysis, ...) get their own document.
 - Maintenance rule: a plan document always reflects the latest status and decisions. When updating, rewrite the
   affected sections and delete stale content; append a dated entry to the document's **Log** section for locked
@@ -50,18 +59,28 @@ There is no build, test suite, or linter.
 
 - Python scripts and notebooks use relative paths `../../data/{dataset}/` and `../../output/{dataset}/`, so the
   working directory must be the script's own folder. Do not run them from the repo root.
-- `data/` and `output/` are gitignored except `data/_utils/`. `code/old/` and `code/test/` are ignored scratch.
+- `data/` and `output/` are gitignored except `data/_utils/`. `code/old/` and `code/test/` are ignored scratch;
+  `code/1_exploration/old/` is the tracked archive of the superseded first exploration scripts (do not run).
 - `output/2_exploration/<dataset>/` holds the Fig. 1 tables and figures; `<dataset>_quick/` holds development runs.
+- `output/1_exploration/` holds the gene set (`enrichment/`), the subtype exploration per sample (`<dataset>/`,
+  summary in `cross_sample/`) and pooled (`pooled*/`), the gene-set sensitivity (`gene_set_sensitivity/`) and the
+  stress analysis (`stress/`). A re-run empties the analysis subfolders it writes; the embedded `.h5ad` objects from
+  HGCC, `enrichment_results.csv` and the cached stress table are kept.
 - Per dataset: `data/<dataset>/raw_data/` (10x outputs) → `intermediate_data/` (cleaned AnnData) →
   `processed_data/` (compartment matrices, granules, pathway scores). `data/merged_data/` holds all datasets combined.
 
 ## Pipeline at a glance
 
-Run in numeric order; `data/_utils/` first (shared gene panel, cell-type dictionaries, pathway GMT).
+Run each folder in the numeric order of its files; `data/_utils/` first (shared gene panel, cell-type
+dictionaries, pathway GMT), then `1_preprocessing` → `2_outcome` → the two exploration folders.
 
 - `code/1_preprocessing/`: clean per dataset → merge datasets → embed → plot.
 - `code/2_outcome/`: split nuclear/cytoplasmic expression → ssGSEA → SG detection (mcDETECT) → SG ssGSEA →
   stress scores on the merged tumor object.
+- `code/1_exploration/`: target gene selection and tumor-cell subtype exploration on the five carcinoma samples
+  (`1`-`5`, shared `subtype_utils.py`; embeddings `2`/`4` as
+  py+sh on HGCC, notebooks local) and the stress vs substate analysis (`6_stress_substates.ipynb` with
+  `stress_utils.py` / `stress_figures.py`, local, about 1 h). Outputs in `output/1_exploration/`.
 - `code/3_model/`: scGPT and UNI trial notebooks only.
 - `code/2_exploration/`: Fig. 1 exploration. Light steps in `fig1_exploration.ipynb` (local, `AIVC-env`); heavy
   steps (clustering, DE, association) in `1_heavy.py` + `1_heavy.sh` on HGCC; outputs in `output/2_exploration/`.
@@ -71,7 +90,9 @@ Run in numeric order; `data/_utils/` first (shared gene panel, cell-type diction
 
 - Tumor cells are always `adata.obs["cell_type_merged"] == "Malignant cell"`.
 - Transcript compartments: `in_nucleus == 1` is nuclear; `overlaps_nucleus == 0` is cytoplasmic.
-- Every script shares the same six-dataset `settings` dict, but the loop is often narrowed to one dataset while
-  iterating. Check which datasets a notebook actually runs before assuming outputs exist for all.
+- The preprocessing and outcome scripts share the same six-dataset `settings` dict, but the loop is often narrowed
+  to one dataset while iterating. Check which datasets a notebook actually runs before assuming outputs exist for
+  all. `code/1_exploration/` uses a fixed list of the five carcinoma samples (Skin, a melanoma, is excluded);
+  `code/2_exploration/` uses all six (`config.py`).
 - The compartment matrices in `processed_data/` contain all decoded transcripts (no QV >= 20 filter); per-cell depth
   must be computed from them, not from obs `total_counts` (which includes control probes).

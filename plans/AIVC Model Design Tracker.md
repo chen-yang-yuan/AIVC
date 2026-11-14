@@ -1,10 +1,10 @@
 # AIVC Model Design Tracker
 
-Current as of 2026-09-27.
+Current as of 2026-11-14.
 
 ## Purpose
 
-This tracker records the AIVC model-design brainstorm: the current state of each design component, live candidates, and the decisions locked. It supplements the repo documents `plans/AIVC_plan.md` (background, data, prior model design), `plans/data_processing.md` (pipeline status) and `plans/naive_model.md` (the SG-localization screen), which stay as they are until decisions here are ready to be folded back in.
+This tracker records the AIVC model-design brainstorm: the current state of each design component, live candidates, and the decisions locked. It supplements the repo documents `plans/AIVC_plan.md` (background, data, prior model design), and `plans/data_processing.md` (pipeline status), which keep the original design until decisions here are ready to be folded back in, and is informed by the three exploration documents (`plans/fig1_exploration.md`, `plans/subtype_exploration.md`, `plans/stress_substate_exploration.md`).
 
 Conventions: every section except the Decision log describes the latest state only and is rewritten as thinking changes, with stale material removed rather than annotated; the Decision log is append-only and dated. A decision is only locked once it appears in the log.
 
@@ -16,9 +16,9 @@ AIVC (the only name used in the manuscript) is a predictive, interpretable model
 
 | Question | Current answer | Status |
 | --- | --- | --- |
-| Q1. Training data | Xenium 5K and CosMx 6K (expression, compartment-assigned reads, neighbors, H&E), FFPE samples only for now; fresh-frozen samples are deferred because gene localization patterns differ between preparations. More than 20 such datasets are available; the six processed Xenium 5K samples (BC, OC, CC, LC, Prostate, Skin) are all FFPE (verified 2026-09-26 from `experiment.xenium`). | Settled |
+| Q1. Training data | Xenium 5K and CosMx 6K (expression, compartment-assigned reads, neighbors, H&E), FFPE samples only for now; fresh-frozen samples are deferred because gene localization patterns differ between preparations. More than 20 such datasets are available; the six processed Xenium 5K samples (BC, OC, CC, LC, Prostate, Skin) are all FFPE (verified 2026-09-26 from `experiment.xenium`). The subtype and stress explorations use the five carcinoma samples; Skin (melanoma) is excluded there. | Settled |
 | Q2a. Inputs | Identity and neighborhood embeddings required; morphology optional. No perturbation embedding. Whether identity is built from total or nuclear expression is open (see Input design). | Settled except identity source |
-| Q2b. Outputs | Cytoplasmic expression of a data-selected gene set; pathway-level cytoplasmic activity as the fallback if per-gene signal is too sparse. Gene set to be determined by the Fig. 1 exploratory analysis. | Form settled; gene set open |
+| Q2b. Outputs | Cytoplasmic expression of a data-selected gene set; pathway-level cytoplasmic activity as the fallback if per-gene signal is too sparse. Working gene set: the 634 cytoplasm-enriched highly variable genes of the subtype exploration (recommended, not locked). | Form settled; gene set recommended, not locked |
 | Q3. Framing | A predictive model of cytoplasmic activity with modality attribution. Counterfactuals (swapping the neighborhood) are a use of the trained model, not its definition. | Settled |
 | Q4. Application data | Deferred until the model performs well on the training datasets. Candidates: subcellular ST with smaller panels (standard Xenium, MERSCOPE), scRNA-seq with a constructed neighborhood, and possibly Visium. H&E alone is out of scope because identity and neighborhood are required. | Deferred |
 
@@ -36,21 +36,21 @@ Nuclear expression as the identity source (proposed). Nuclear reads approximate 
 
 Fusion: the three embeddings are combined by attention so that, for each output gene or pathway, the attention weights give a modality attribution (see Interpretability). Detailed architecture beyond this (frozen foundation models vs trained encoders, graph vs pooled neighborhood) remains deferred.
 
-Existing assets: scGPT and UNI2-h weights in `data/_utils/`; trial embedding notebooks in `code/3_model/`; naive-model feature pipeline (per-fold SVD, neighborhood geometry cache) in `naive_model/`.
+Existing assets: scGPT and UNI2-h weights in `data/_utils/`; trial embedding notebooks in `code/3_model/`; the exploration code in `code/1_exploration/` and `code/2_exploration/` (compartment statistics, controls, subtyping, stress axes).
 
 ## Output design
 
 Primary target: cytoplasmic expression of a selected gene set. Fallback: cytoplasmic activity of selected pathways, computed by aggregating cytoplasmic counts over each pathway's genes (count aggregation rather than rank-based ssGSEA, which is unstable at per-cell sparsity). Pathway scores can also be derived post hoc from predicted per-gene counts if the per-gene target is retained.
 
-Gene-set selection (to be done in the Fig. 1 analysis): genes whose cytoplasmic expression varies across cells beyond counting noise and is associated with tumor subtype, morphology or neighborhood, filtered for adequate counts, with biologically relevant genes (stress response first) preferred when several qualify.
+Gene-set selection: the aim is genes whose cytoplasmic expression varies across cells beyond counting noise and is associated with tumor subtype, morphology or neighborhood, with adequate counts. The exploration produced the 634-gene set (highly variable and cytoplasm-enriched across samples; see Exploratory stage), which is the working target set.
 
 Target form (open). Three definitions of "cytoplasmic activity" are compatible with the framing and differ in what the model learns and what the identity input may contain:
 
 - A. Absolute cytoplasmic count from total-expression identity, k\_g \~ NB. The target gene's total count must be excluded from the identity embedding, otherwise the prediction is trivial. An imputation task with a compartment-level target and a neighborhood input.
-- B. Compartment split given total, k\_g \~ Binomial(n\_g, p\_g) with the per-cell global offset from the naive model. Total counts may stay in the identity embedding. The model learns where a gene's transcripts sit, not how many there are. The naive model showed this signal is small for the 129 SG genes; whether it is larger for a data-selected gene set is what the Fig. 1 analysis will show.
+- B. Compartment split given total, k\_g \~ Binomial(n\_g, p\_g) with the per-cell global offset from the naive model. Total counts may stay in the identity embedding. The model learns where a gene's transcripts sit, not how many there are. The naive model showed this signal is small for the 129 SG genes, and the Fig. 1 analysis found that the environment adds almost nothing to the per-gene split on the whole panel.
 - C. Absolute cytoplasmic count from nuclear-expression identity, k\_g \~ NB with the nuclear counts of all genes as input. No gene exclusion needed; input and target reads are disjoint. The model learns the cytoplasmic pool given the nascent state, and the environmental question becomes whether the neighborhood and morphology change that mapping.
 
-A and B are complementary (predicting both n\_g and p\_g gives the cytoplasmic count as their product with abundance and localization separated); C replaces the gene-exclusion device of A with read-level separation. The Fig. 1 results decide: whether B carries enough signal to stand alone, and whether nuclear expression is a sufficient identity source for C.
+A and B are complementary (predicting both n\_g and p\_g gives the cytoplasmic count as their product with abundance and localization separated); C replaces the gene-exclusion device of A with read-level separation. Evidence so far (Exploratory stage and Open questions): B does not carry enough environmental signal to stand alone, and nuclear expression is a defensible identity source where nuclear depth is adequate. The subtype exploration adds a fourth element that applies to A and C alike: a per-gene, per-sample intercept, so that the predicted quantity is the sample-relative log cytoplasmic activity.
 
 Evaluation against the imputation null. Under either form, identity-only prediction is the natural null model. Three fits are reported: M0 identity only, M1 identity + neighborhood, M2 identity + neighborhood + morphology (and neighborhood + morphology without identity as a check). The increments M1 − M0 and M2 − M1 are the evidence that the environment and morphology carry information about cytoplasmic activity beyond own expression, and they are the quantitative counterpart of the attention attributions.
 
@@ -64,7 +64,7 @@ established for the SG gene set, retained as design lessons:
 - An expression-matched non-SG control set is far more predictable than the SG set, so residual skill is generic compartment or segmentation structure, not SG biology.
 - Retained: the offset-binomial target form and the evaluation discipline (reliability ceiling, matched-control gene set, leave-one-sample-out and within-sample references, synthetic-signal plumbing check). These are re-implemented in `code/2_exploration/`.
 
-Design lessons: any per-cell compartment target must pool enough transcripts, by choosing well-expressed genes or aggregating to pathways; a gene list from one study is fragile and the target set should be validated on these data; and any new target should be screened with the naive pipeline (swap the target, keep the controls) before architecture work.
+Design lessons: any per-cell compartment target must pool enough transcripts, by choosing well-expressed genes or aggregating to pathways; a gene list from one study is fragile and the target set should be validated on these data; and any new target should be screened with the same control suite (swap the target, keep the controls) before architecture work.
 
 ## Interpretability
 
@@ -81,7 +81,7 @@ Benchmark on the Xenium 5K and CosMx 6K datasets against methods that solve adja
 
 - Gene imputation from own expression (SpaGE, Tangram, gimVI, scGPT imputation): the identity-only null, adapted to predict cytoplasmic counts.
 - Spatial-context expression prediction (niche-conditioned models such as Nicheformer-style or GNN-based spatial expression predictors): the identity + neighborhood comparison.
-- Simple statistical baselines: the naive-model GLM on the same features, and a per-gene offset-binomial GLM.
+- Simple statistical baselines: a GLM on the same features, and a per-gene offset-binomial GLM.
 
 Metrics: likelihood-based (NB / binomial deviance explained) and R² on log counts, always relative to each sample's reliability ceiling; leave-one-sample-out and leave-one-cancer-type-out as the generalization estimates.
 
@@ -120,33 +120,48 @@ Work on these starts only after the model performs well on the training datasets
 | 3–4 | Benchmarking and cross-validation on Xenium 5K and CosMx 6K. |
 | 5–6 | Applications to standard Xenium and/or scRNA-seq datasets. |
 
-## Next step: exploratory analysis for Fig. 1
+## Exploratory stage (completed 2026-11)
 
-Goal: show, in an intuitive way, that cytoplasmic expression in tumor cells carries information that nuclear (or total) expression does not, characterize the differential patterns between the two compartments in the six processed Xenium 5K samples (FFPE samples only), and from them select the target gene set. The narrative runs from basic to specific: the compartments are different (Part A), the difference is biology rather than artifact (Part B), and the difference relates to the model's inputs (Part C).
+Three exploratory analyses of the processed Xenium 5K samples are complete; each has its own plan document with
+design, results and caveats. Their conclusions enter this tracker as recommendations; nothing below is locked until
+it appears in the Decision log.
 
-Design rules that apply to every analysis: (i) depth matching, so any nuclear-vs-cytoplasmic comparison downsamples both compartments to the same per-cell depth (rarefaction) or works on fractions with a per-cell leave-one-gene-out offset (measured 2026-09-26: nuclear reads are 37–54% of in-cell reads, more than cytoplasmic in BC and OC, so matching costs little); (ii) a reliability ceiling against binomial counting noise, so that a difference is only reported where it exceeds it; (iii) positive controls for compartment assignment using transcripts with known localization. MALAT1, NEAT1 and XIST are not on the 5K panel; the panel lncRNAs MEG3, MIAT, PVT1, CRNDE and HOTAIR are nuclear-retained in the data and NORAD is cytoplasmic, and they serve as the controls, together with segmentation-method and area-ratio strata checks; (iv) tumor cells only, per sample first, then across samples.
+| Analysis | Samples | Document | Code / outputs |
+| --- | --- | --- | --- |
+| Fig. 1: nuclear vs cytoplasmic expression, artifact controls, association with the model inputs | six (BC, OC, CC, LC, Prostate, Skin) | `plans/fig1_exploration.md` | `code/2_exploration/`, `output/2_exploration/` |
+| Target gene set and tumor-cell substates: per sample, pooled, sample-corrected pooled (cytoplasmic and nuclear), gene-set sensitivity | five carcinomas (Skin, a melanoma, excluded) | `plans/subtype_exploration.md` | `code/1_exploration/` (`1`-`5`), `output/1_exploration/` |
+| Stress vs substates: 28 stress axes, two stress labellings, cytoplasmic vs nuclear | the same five | `plans/stress_substate_exploration.md` | `code/1_exploration/6_stress_substates.ipynb`, `output/1_exploration/stress/` |
 
-Implementation: `code/2_exploration/` (design, status and results in `plans/fig1_exploration.md`; execution order in the folder README). Morphology in this stage is segmentation-derived (nucleus/cell area ratio, cell area, segmentation method) because H&E exists only for OC; the UNI morphology axis is deferred.
+The design rules of the Fig. 1 stage (depth matching, reliability ceiling against counting noise, positive controls
+for compartment assignment, matched-control gene sets, tumor cells only) are specified in `plans/fig1_exploration.md`
+section 3 and remain the evaluation discipline for later stages.
 
-Part A: the two compartments are different.
+### Exploration results (recommendations, not locked)
 
-1. Global description: per sample, the fraction of reads in nucleus vs cytoplasm; per gene, the distribution of cytoplasmic fraction across cells relative to the global offset; the positive controls; and the gene classes that emerge (nuclear-retained, cytoplasm-enriched, balanced).
-2. Per-gene compartment concordance: for each gene, the correlation of nuclear and cytoplasmic counts across tumor cells after depth matching. Genes with high abundance but low concordance are where the compartments diverge, and they are the first candidates for the target set.
-3. Compartment-specific clustering: cluster tumor cells three times on nuclear, cytoplasmic and total expression with an identical pipeline (same normalization, HVG selection and depth matching). Compare partitions by ARI/NMI; identify clusters that appear only in the cytoplasmic partition; and show whether those clusters are spatially coherent (do they align with tumor boundary, immune-rich regions or morphology clusters). A cytoplasm-only cluster that is spatially coherent is the single most intuitive Fig. 1 panel. This analysis also answers whether nuclear-only clustering recovers the subtypes seen in total expression, which decides the nuclear-identity option.
-4. Compartment-specific differential expression: define subtypes from the nuclear partition (transcriptional identity), then run differential expression across those subtypes on nuclear counts and on cytoplasmic counts separately. Compare the top-gene lists: genes differential in the cytoplasm but not the nucleus reflect post-transcriptional regulation (export, stability, localization) rather than transcription, and are the second source of target candidates. Repeat with the cytoplasmic partition as the grouping to show the converse.
-
-Part B: the difference is biology rather than artifact.
-
-5. Matched-control check: for every gene set proposed from Parts A and C, compare against an expression-matched control set drawn from the rest of the panel, so that segmentation, cell-size and depth effects are not mistaken for biology. Genes whose compartment pattern survives this check are kept.
-6. Cross-sample reproducibility: which per-gene compartment patterns and which cytoplasm-specific clusters recur across the six samples and cancer types, and which are sample-specific. Recurrent patterns anchor the main figure; sample-specific ones are reported as heterogeneity.
-
-Part C: the difference relates to the model's inputs.
-
-7. Association with the three input axes: for reliable genes, how cytoplasmic fraction and cytoplasmic count vary with tumor subtype (nuclear partition), morphology (UNI embedding clusters) and neighborhood features (cell-type composition, crowding, boundary vs core), each compared with the same association computed on nuclear counts. Output: genes whose cytoplasmic activity is sensitive to each axis beyond what the nucleus shows.
-8. Pathway level: analyses 2, 4 and 7 on count-aggregated pathway scores (stress-response pathways first, then the broader GMT), to establish whether pathway targets carry signal where per-gene targets do not.
-9. Biological relevance filter: intersect the candidate list with stress-response and other annotated programs; report which programs are represented, and prefer annotated genes when several candidates qualify.
-
-Output of this step: the candidate target gene set (or pathway set), the choice among target forms A, B and C, the identity source (total vs nuclear), and the Fig. 1 panels. Likely panel order: compartment read fractions and positive controls (1); concordance scatter with divergent genes highlighted (2); three-way clustering with a spatial map of the cytoplasm-only cluster (3); DE comparison as paired volcano or overlap plots (4); association with neighborhood or morphology for the top candidates (7); pathway summary (8).
+- Target gene set: 634 genes, highly variable in >= 2 and cytoplasm-enriched in >= 3 of the five carcinoma samples
+  (`output/1_exploration/enrichment/overlap_genes_3plus_samples.npy`). The set is stable to the HVG basis; a
+  detection-rate criterion is not a workable substitute. It replaces the ~40-gene first list of the Fig. 1 stage as
+  the working target set (16 of those 43 genes are in it).
+- Structure of the target: the cytoplasmic expression of these genes organises tumor cells into substates. S-phase,
+  G2/M, Interferon and Hypoxia recur across the five tumors once the per-sample mean is removed; ER stress and
+  Complement / acute phase partly; the two border labels (Stroma, Myeloid) are neighbours' transcripts captured by
+  the cytoplasm segmentation, i.e. leakage that a neighbourhood input predicts trivially. "Stress response" lumps
+  different programs and has to be split before it is used as a target.
+- Sample effect: a per-gene mean shift concentrated in lineage genes; without a per-sample correction the pooled
+  analysis clusters tumors, with it the samples mix. Recommended outcome: the sample-relative log cytoplasmic
+  activity eta, with a count link `log mu = log d + a_gs + eta` (cytoplasmic depth offset, per-gene per-sample
+  intercept) and a program-level primary readout with a per-gene track (`plans/subtype_exploration.md` section 7).
+  Between-sample level differences are conditioned on, not modelled.
+- Identity source: the nuclear expression of the 634 genes does not reproduce their cytoplasmic substates cell by
+  cell (ARI 0.05), so a nuclear identity input (target form C) is non-redundant with the outcome; nuclear depth
+  limits BC, CC and Prostate. The identity-only null needs a split-half reliability ceiling.
+- Environment: the cytoplasmic substates are connected to tumor stress coherently but weakly (Cramer's V <= 0.40,
+  AMI <= 0.06), and cytoplasmic expression is more closely related to the expression-free stress axes than nuclear
+  expression (19 of 20 axes). The advantage is concentrated in cells with few nuclear transcripts; the
+  thinned-cytoplasm depth control has not been run.
+- Open checks before locking: split-half reliability of the outcome per sample, the per-gene test of whether the
+  sample intercept is needed, the thinned-cytoplasm control, the split of the Stress response label, and whether the
+  set and substates hold in Skin.
 
 ## Ideas under discussion
 
@@ -157,13 +172,14 @@ Output of this step: the candidate target gene set (or pathway set), the choice 
 
 ## Open questions
 
-- [ ] Target form A (absolute count, target genes out of identity), B (compartment split given total) or C (absolute count from nuclear identity), or a combination. Fig. 1 evidence (`plans/fig1_exploration.md` 5.3): the environment adds almost nothing to the per-gene split (B) but shows in cytoplasmic counts and at pathway level; recommendation: count-based primary target (A or C) with B as a secondary readout.
-- [ ] Identity source: total or nuclear expression. Fig. 1 evidence: nuclear-only clustering recovers the total partition as well as cytoplasmic clustering does, but clusterability is depth-limited; nuclear identity is defensible in LC, Skin, OC and marginal in BC, CC, Prostate.
-- [ ] Target gene set and whether the primary target is per gene or per pathway. Fig. 1 evidence: reliable per-gene localisation for 15-209 genes per sample; ~40 recurrent candidate / cyto-only-DE genes; environment signal mainly at pathway level (KRAS up, EMT, ER stress, TNFa). Recommendation: pathway-level primary target with a per-gene track.
+- [ ] Target form A (absolute count, target genes out of identity), B (compartment split given total) or C (absolute count from nuclear identity), or a combination. Fig. 1 evidence (`plans/fig1_exploration.md` 5.3): the environment adds almost nothing to the per-gene split (B) but shows in cytoplasmic counts and at pathway level; recommendation: count-based primary target (A or C) with B as a secondary readout. Subtype exploration (`plans/subtype_exploration.md` 7): count link with cytoplasmic depth offset and a per-gene, per-sample intercept; the prediction is the sample-relative log cytoplasmic activity.
+- [ ] Identity source: total or nuclear expression. Fig. 1 evidence: nuclear-only clustering recovers the total partition as well as cytoplasmic clustering does, but clusterability is depth-limited; nuclear identity is defensible in LC, Skin, OC and marginal in BC, CC, Prostate. Subtype exploration: on the 634 target genes the nuclear and cytoplasmic substates of a cell agree at chance level (ARI 0.05), so nuclear identity is non-redundant with the outcome.
+- [ ] Target gene set and whether the primary target is per gene or per pathway. Fig. 1 evidence: reliable per-gene localisation for 15-209 genes per sample; ~40 recurrent candidate / cyto-only-DE genes; environment signal mainly at pathway level (KRAS up, EMT, ER stress, TNFa). Recommendation: pathway-level primary target with a per-gene track. Subtype exploration: working target set of 634 genes; program-level readout on the recurrent substate programs (S-phase, G2/M, Interferon, Hypoxia, ER stress, Complement / acute phase), which are defined on the data rather than taken from the GMT; the Fig. 1 per-gene list overlaps the 634 only partly (16 of 43).
 - [x] FFPE status of the six processed samples: all FFPE (2026-09-26). The remaining datasets' status is still to be checked as they are ingested; fresh-frozen samples are excluded from training for now.
 - [ ] Tumor-cell definition across datasets: BC/OC/CC use 10x supervised labels, LC/Prostate/Skin manual cluster
-  annotation without a non-malignant epithelial class. Step 0b of the Fig. 1 exploration reports the consistency;
-  harmonisation (marker QC, CNV inference) to be decided from that report.
+  annotation without a non-malignant epithelial class. Step 0b of the Fig. 1 exploration (run 2026-09-26) found the supervised
+  tumor sets clean and benign-like or low-signal clusters in 20-28 % of the LC, Prostate and Skin tumor cells;
+  harmonisation (marker QC, CNV inference) is still to be decided.
 - [ ] Neighborhood definition and radius; which features enter the embedding.
 - [ ] Attention design that yields clean per-output modality attributions (per-gene attention heads vs shared fusion with per-gene readout).
 - [ ] Which datasets become discovery sets, and whether one model spans Xenium and CosMx.
@@ -186,3 +202,4 @@ Output of this step: the candidate target gene set (or pathway set), the choice 
 | 2026-09-26 | Training data restricted to FFPE samples for now; fresh-frozen samples deferred because gene localization patterns differ between preparation methods. Nuclear expression added as a candidate identity source (target form C). Fig. 1 plan expanded with basic compartment comparisons (clustering, differential expression) ahead of the target-selection analyses. |
 | 2026-09-26 | All six processed Xenium 5K samples verified FFPE from `experiment.xenium`. The naive model is dropped from the project (code and write-up not kept); its retained lessons stay in this tracker. Fig. 1 exploration implemented in `code/2_exploration/` with light steps in a notebook and heavy steps on HGCC (`plans/fig1_exploration.md`). Positive controls replaced by panel lncRNAs (MEG3, MIAT, PVT1, CRNDE, HOTAIR nuclear; NORAD cytoplasmic). Morphology axis for this stage = segmentation-derived features only. The compartment matrices keep all decoded transcripts (no QV filter); recorded as a caveat. |
 | 2026-09-27 | Fig. 1 exploration run on all six datasets; results and recommendations in `plans/fig1_exploration.md` section 5. The pre-registered "cytoplasm-only spatially coherent cluster" panel does not exist in these data (OC shows a continuous residual axis only); cytoplasm-specific DE across nuclear subtypes and pathway-level environment associations are the positive findings. Decisions on target form, identity source and gene set remain open for the user. |
+| 2026-11-14 | Exploratory stage closed: target-gene selection (634 genes) with its sensitivity analysis, per-sample and pooled subtyping (cytoplasmic and nuclear), and the stress vs substate analysis are complete and audited (`plans/subtype_exploration.md`, `plans/stress_substate_exploration.md`). Their conclusions are recorded in "Exploratory stage" as recommendations. No decision is locked by this entry: target form, identity source, the gene set and the outcome definition (sample-relative log cytoplasmic activity) remain open for the user. |

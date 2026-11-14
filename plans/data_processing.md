@@ -1,6 +1,6 @@
 # Data Processing and Outcome Definition
 
-Last updated: 2026-09-15.
+Last updated: 2026-11-14.
 
 ## 1. Purpose and scope
 
@@ -18,7 +18,10 @@ Last updated: 2026-09-15.
   (graph-cluster id → merged label for LC, Prostate, Skin).
 - `hallmark_pathways.R` → `all_pathways_filtered.gmt`: Hallmark + keyword-filtered Reactome and GO-BP sets
   (stress, translation, RNA processing, proteostasis keywords), restricted to the panel, ≥50 overlapping genes,
-  Jaccard-deduplicated at 0.5 (the message text says 0.7). Also writes `filtered_pathways_{hallmark,reactome,gobp}.csv`.
+  Jaccard-deduplicated at 0.5 (the message text says 0.7); 106 sets (31 Hallmark, 33 Reactome, 42 GO-BP). Also writes
+  `filtered_pathways_{hallmark,reactome,gobp}.csv`. `hallmark_pathways_filtered.gmt` (the 31 Hallmark sets alone) is a
+  legacy file whose writing code is commented out in the script; it is still read by `code/1_exploration/`
+  (`subtype_utils.py`, the stress notebook).
 - `hallmark_pathways_test.R` → `test_filtered_pathways_*_<dataset>.csv`: same idea with panel = top-100
   granule-detected genes per dataset and lower overlap thresholds. Exploratory; outputs are untracked.
 - `SG_markers.xlsx`: stress-granule marker genes with "Fraction of RNA molecules in SGs"; threshold 0.4 downstream.
@@ -66,7 +69,7 @@ expression matrices; `cell_ids.npy`, `gene_ids.npy`; granule files at two settin
 
 Merged (`data/merged_data/`): `adata_all_raw.h5ad` and `adata_tumor_scored.h5ad` (`adata_embedded.h5ad` is
 **absent**)
-(672,964 tumor cells; 31 pathways × 3 compartments; hypoxia, heat-shock, mechanical, T-cell-attack, and
+(672,964 tumor cells; 31 Hallmark pathways × 3 compartments; hypoxia, heat-shock, mechanical, T-cell-attack, and
 immune-proximity scores with binary subtypes).
 
 ## 4. Measurements
@@ -98,19 +101,19 @@ every cell and carries most of the granule-associated signal. This feeds the out
 
 - Granule filenames have drifted: `granule_adata.h5ad` (read by `4_ssGSEA_SG`), `granule_adata_0.25_1.h5ad`,
   `granule_adata_0.4_1.5.h5ad` (written by `3_detection`, read by `5_score`).
-- `ssgsea_hallmark_*` filenames are legacy; scores come from the combined Hallmark + Reactome + GO-BP GMT
-  (31 pathways after filtering and dedup).
+- `ssgsea_hallmark_*` parquets are not uniform: BC holds 106 columns (the combined Hallmark + Reactome + GO-BP GMT),
+  the other five datasets the 31 Hallmark sets only, although `2_ssGSEA.ipynb` now points at the combined GMT. Code
+  that reads them must select columns by name (the exploration uses Hallmark columns only).
 - The per-dataset coordinate shift table is duplicated in `2_merge.ipynb` and `5_score.ipynb`.
 - `4_ssGSEA_SG.ipynb` is mostly commented out; its outputs exist from an earlier run.
 - `hallmark_pathways_test.R` outputs (`test_filtered_pathways_*.csv`) are untracked in git.
 - H&E-to-Xenium alignment has been checked visually on OC only.
 - Notebooks often loop over a single dataset while iterating; outputs may not be current for all six.
 - `adata_embedded.h5ad` does not exist on disk, though §2 lists it as a product of `3_embedding.py`.
-- Only `ssgsea_hallmark_*` parquets exist; no GO-BP or Reactome ssGSEA outputs were ever written, despite scores
-  coming from the combined GMT.
 - `cell_type_merged` carries only 9-16 of the 18 categories per dataset (BC 16, OC 15, CC 15, LC 15, Prostate 9,
   Skin 10). Any per-dataset code that derives a cell-type vocabulary from `.cat.categories` will misalign columns
-  across datasets; use a hard-coded union (see `naive_model/code/config.py:CELL_TYPES_18`).
+  across datasets; use a hard-coded union (`CELL_TYPES_18` in `code/2_exploration/config.py`; `known_types` in
+  `code/1_exploration/subtype_utils.py`).
 - `nucleus_area` is NaN for cells segmented without a nucleus (1.5-8% of tumor cells); such cells have a
   degenerate nuclear/cytoplasmic split.
 - The compartment matrices are built from all decoded transcripts: `1_clean` drops the raw `qv` column, so the
@@ -123,20 +126,27 @@ every cell and carries most of the granule-associated signal. This feeds the out
 
 ## 6. Planned changes
 
-Pending the outcome-variable decision (`AIVC_plan.md` §4.3):
-1. Run the coverage and stress-correlation analyses for each candidate outcome (per dataset and pooled).
+Pending the outcome-variable decision (`AIVC_plan.md` §4.3 and the Tracker; the exploratory analyses that inform
+it are complete, see `plans/subtype_exploration.md` and `plans/stress_substate_exploration.md`):
+1. Build the outcome tables of the chosen definition (current candidate: sample-relative cytoplasmic activity of
+   the 634 target genes and substate programs).
 2. Revise `code/2_outcome/` accordingly; if granule construction is dropped, demote `3_detection` and
    `4_ssGSEA_SG` and make compartment-level outcomes the primary product.
 3. Clean up the known issues above once the outcome pipeline is settled.
-4. Implement the missing stress definitions (monotonic, oscillatory) and 0–1 scaling if adopted.
+4. Move the stress axes of the exploration (`code/1_exploration/stress_utils.py`, 28 axes) into `code/2_outcome/`
+   if they are adopted; monotonic and oscillatory stress remain undefined.
 5. Ingest the Linghua and NC-paper datasets; settle the gene-panel strategy across panels.
 
 ## 7. Log
 
 - **2026-09-15** — Document created from pipeline content split out of `plans/AIVC_plan.md`. No pipeline changes.
-- **2026-09-26** — Known issues extended: no QV filter in the compartment matrices (kept, caveat recorded); FFPE
-  status verified for all six samples. `code/2_exploration/` (Fig. 1 exploration) reads the compartment matrices and
-  `intermediate_data/adata.h5ad` directly; no pipeline changes.
 - **2026-09-22** — Corrections from the naive-model stage: `adata_embedded.h5ad` is absent; no GO-BP/Reactome
   ssGSEA outputs exist; per-dataset `cell_type_merged` vocabularies are incomplete; `nucleus_area` is NaN for
   nucleus-free cells. No pipeline changes.
+- **2026-09-26** — Known issues extended: no QV filter in the compartment matrices (kept, caveat recorded); FFPE
+  status verified for all six samples. `code/2_exploration/` (Fig. 1 exploration) reads the compartment matrices and
+  `intermediate_data/adata.h5ad` directly; no pipeline changes.
+- **2026-11-14** — Audit of the exploratory stage: pathway counts corrected (106-set combined GMT, 31-set
+  Hallmark GMT; BC ssGSEA parquets hold 106 columns, the other five 31), the legacy Hallmark GMT listed, the dead
+  cell-type-vocabulary pointer replaced, section 6 updated for the completed stress analysis, Log put in date
+  order. No pipeline changes.

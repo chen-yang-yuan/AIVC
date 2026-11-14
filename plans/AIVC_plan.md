@@ -1,14 +1,21 @@
 # AIVC Project Plan: Background, Data, and Model Design
 
-Last updated: 2026-09-15.
+Last updated: 2026-11-14.
+
+**Status note.** Sections 2 and 4 describe the original design from the ideas document (stress-score and
+pathway heads for nucleus, cytoplasm and RNA granules). The design has since been reframed as a predictive,
+interpretable model of cytoplasmic activity of a data-selected gene set; the current state of every design
+component, the exploration results and the decision log live in `plans/AIVC Model Design Tracker.md`, and the
+original design below is kept until those decisions are locked and folded back in.
 
 ## 1. Purpose and scope
 
 - This document covers the project's background and rationale, the data, and the model design and architecture.
   It is refined through brainstorming and always reflects the latest thinking; stale content is removed on update
   and locked decisions are recorded in the **Log** (section 6).
-- Pipeline and code-level status live in `plans/data_processing.md`. Later stages (model implementation,
-  simulation studies, real data analysis) will get their own documents.
+- Pipeline and code-level status live in `plans/data_processing.md`; the exploratory stage is documented in
+  `plans/fig1_exploration.md`, `plans/subtype_exploration.md` and `plans/stress_substate_exploration.md`. Later
+  stages (model implementation, simulation studies, real data analysis) will get their own documents.
 - Source material: `plans/AIVC_ideas_12-08-2026.docx`, preliminary ideas from the advisor and Chenyang (the
   filename date is likely a typo for Dec 2025, which matches the git history).
 
@@ -42,7 +49,7 @@ Inventory from the ideas doc ("25 samples across 8 cancer types"):
 
 | Source | Samples | In repo? |
 |---|---|---|
-| Public Xenium 5K | OC (FF), OC (FFPE), LC, BC, CC, Skin melanoma, Prostate; lymph node dropped | 6 processed: `Xenium_5K_{BC,OC,CC,LC,Prostate,Skin}` (which OC is unclear) |
+| Public Xenium 5K | OC (FF), OC (FFPE), LC, BC, CC, Skin melanoma, Prostate; lymph node dropped | 6 processed, all FFPE: `Xenium_5K_{BC,OC,CC,LC,Prostate,Skin}` (OC = `Xenium_Prime_Ovarian_Cancer_FFPE`) |
 | Linghua lung Xenium 5K | 3 AAH, 3 AIS, 6 LUAD; 6 patients; clinical info | 12 empty folders `data/Linghua_P*_{AAH,AIS,LUAD}` |
 | NC paper Xenium 5K | OV, HCC, COAD (FFPE); 3 patients; clinical info | Not present |
 | NC paper CosMx 6K | OV, HCC, COAD (FFPE) | Not present |
@@ -95,7 +102,19 @@ Modalities available per cell: 5K expression, transcript coordinates with nucleu
 | Immune attack | proximity to activated CD8 T / NK / inflammatory macrophages | T-cell count within 100 µm, optional Gaussian kernel weighted by GZMA/GZMB/GZMK; also broad immune-cell count within 50 µm | Implemented (T cell + immune proximity) |
 | Oscillatory | vessel-based (optional, from Jiahui's work) | none | Not implemented |
 
+The table is the state of `code/2_outcome/5_score.ipynb`. The exploratory stress analysis
+(`plans/stress_substate_exploration.md` section 3) redefined the axes for the five carcinoma samples: 28 axes (20
+expression-free environmental axes, including vascular, core / boundary, stromal and myeloid ones; 5 whole-cell
+signature scores; 3 others), crowding computed on all cells instead of tumor cells only, and hallmark signature
+scores instead of the 8-TF rule as the hypoxia measure (the rule is kept as a secondary axis). In `5_score.ipynb`
+the T-cell count uses a 50 um radius; the 100 um radius applies to the GZM-weighted kernel only.
+
 ### 4.3 Outcome variable (OPEN)
+
+Current candidate (not locked): the sample-relative log cytoplasmic activity of the 634 target genes and of the
+recurrent substate programs, with a count link (cytoplasmic depth offset, per-gene per-sample intercept); see
+`plans/subtype_exploration.md` section 7 and the Tracker. It is a refinement of direction G2 below. The rest of
+this section is the September analysis of the granule question that led there.
 
 The ideas doc specifies pathway activity in nucleus, cytoplasm, and RNA granules. The granule component is the
 weak link.
@@ -110,26 +129,28 @@ Evidence (measured 2026-09-13; details in `data_processing.md`):
   granule-positive cells) while nucleus vs granule is near zero. Paired DE found only about one granule-enriched
   gene per dataset.
 
-Candidate directions:
-- **A. Keep mcDETECT granule pathway scores** (current). Cons: low coverage, zeros dominate, few granule-enriched
+Candidate directions (named G1-G3 here; the target forms A / B / C of the Tracker are a different, later
+classification):
+- **G1. Keep mcDETECT granule pathway scores** (current). Cons: low coverage, zeros dominate, few granule-enriched
   genes, sensitive to detection parameters.
-- **B. Drop granule construction; use cytoplasmic localization directly.** Outcome = cytoplasmic (vs nuclear)
+- **G2. Drop granule construction; use cytoplasmic localization directly.** Outcome = cytoplasmic (vs nuclear)
   expression or enrichment of selected genes or gene sets: per-cell in-cytoplasm ratio of SG-marker genes,
   cytoplasmic pathway scores, or cytoplasm-minus-nucleus pathway contrasts. Pros: defined for every tumor cell,
   carries most of the granule-associated signal, no detection hyperparameters. Cons: loses the explicit aggregate
   phenotype; cytoplasmic counts are still sparse per cell.
-- **C. Hybrid.** A continuous per-cell "granule propensity" (cytoplasmic SG-marker aggregate, or a relaxed
+- **G3. Hybrid.** A continuous per-cell "granule propensity" (cytoplasmic SG-marker aggregate, or a relaxed
   mcDETECT setting) as one head, plus nucleus and cytoplasm pathway heads.
 
 Criteria: fraction of tumor cells with a non-degenerate value; signal-to-noise (variance not driven by zeros);
 biological interpretability; correlation with stress scores; consistency across datasets; fit with the multi-head
 regression design.
 
-Analyses to settle it:
-1. Coverage and distribution of each candidate outcome per dataset (fraction zero, dispersion).
-2. Correlation of each candidate with hypoxia, mechanical, and immune scores, per dataset and pooled.
-3. Cross-dataset consistency of the top-ranked pathways or genes per candidate.
-4. Whether relaxed mcDETECT settings change the picture enough to keep option A or C.
+Analyses that addressed it: coverage and noise of a per-cell cytoplasmic outcome (Log 2026-09-22 and
+`plans/fig1_exploration.md`: per-cell localization of single genes is mostly counting noise, so the outcome must
+pool transcripts over genes or programs); cross-sample consistency of the cytoplasmic substates
+(`plans/subtype_exploration.md`); correlation with stress (`plans/stress_substate_exploration.md`: granule-level
+scores do not separate the substates, cytoplasmic expression is related to the environmental stress axes). Not
+done: whether relaxed mcDETECT settings change the picture enough to keep G1 or G3.
 
 ### 4.4 Architecture, losses, evaluation
 
@@ -154,7 +175,7 @@ cell-centered H&E patches on OC.
 
 ## 5. Open questions
 
-- Outcome variable (section 4.3).
+- Outcome variable (section 4.3; candidate recorded, decision pending in the Tracker).
 - Uncertainty estimation for predictions: desired, method unspecified.
 - Train/test split: by sample, but stratification across cancer types and handling of paired samples (Linghua
   patients) is undecided.
@@ -196,3 +217,9 @@ cell-centered H&E patches on OC.
   strong SG biology. Options are to aggregate (niche-level over cells, or pathway-level over genes -- which is
   what the existing ssGSEA scores already do), to weight samples by reliability, or to treat SG localization as a
   sample-level rather than cell-level phenotype. See `plans/naive_model.md` §4.
+- **2026-11-14** — Status update after the exploratory stage (Fig. 1, subtype and stress explorations): status note
+  added at the top; §3 OC sample identified; §4.2 points to the redefined stress axes; §4.3 records the current
+  outcome candidate and renames the granule directions G1-G3 to avoid a clash with the Tracker's target forms; the
+  outcome variable stays open. The naive model was dropped from the project on 2026-09-26: `plans/naive_model.md`
+  and `naive_model/` cited in the two 2026-09-22 entries no longer exist (retained lessons: Tracker, "Evidence from
+  the naive model"), and "candidate B" in those entries is direction G2 of §4.3.

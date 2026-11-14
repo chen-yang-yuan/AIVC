@@ -18,7 +18,8 @@
 #   sbatch 2_embedding.sh                 # all 10 tasks
 #   sbatch --array=0-1 2_embedding.sh     # one sample (BC)
 #   sbatch --array=0-9%5 2_embedding.sh   # at most 5 tasks at a time
-# Existing outputs are skipped, so a resubmission only redoes the failed/missing units; add --force to recompute all.
+# Existing outputs are skipped, so a resubmission only redoes the failed/missing units; to recompute all, add --force
+# to the python3 call at the end of this script.
 
 set -euo pipefail
 

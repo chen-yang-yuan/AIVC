@@ -1,4 +1,10 @@
-# code/1_exploration
+# code/1_exploration/old (archived)
+
+**Archived 2026-10-05, superseded.** These are the scripts of the first exploration design (nuclear vs cytoplasmic
+embedding of six samples on the full panel, parameter grid). They were replaced by the 634-gene pipeline in the
+parent folder (`1_enrichment.ipynb` ... `6_stress_substates.ipynb`; see `plans/subtype_exploration.md`) and are kept
+for reference only: they read and write output paths that no longer exist or now hold different files, so they
+must not be run as they are. The text below is the original description.
 
 Embedding and clustering of tumor cells on nuclear vs cytoplasmic expression, per Xenium 5K sample.
 

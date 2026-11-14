@@ -1,7 +1,10 @@
-"""Shared functions of the tumor-cell subtyping notebooks (3_clustering.ipynb per sample, 4_pooled.ipynb pooled).
+"""Shared functions of the tumor-cell subtyping notebooks: 3_clustering.ipynb (per sample) and the pooled notebooks
+4_pooled.ipynb, 4_pooled_sample_corrected.ipynb and 4_pooled_sample_corrected_nuclear.ipynb. stress_figures.py
+reuses the label vocabulary and colours.
 
-The notebooks cluster tumor cells on the depth-corrected cytoplasmic expression of the cytoplasm-enriched gene set
-(embedding from 2_embedding.py / 4_pooled_embedding.py on HGCC), annotate every cluster with a biological program
+The notebooks cluster tumor cells on the depth-corrected expression of the 634 cytoplasm-enriched genes in one
+compartment (cytoplasmic, or nuclear in the nuclear pooled notebook; see COMPARTMENT; embedding from 2_embedding.py /
+4_pooled_embedding.py on HGCC), annotate every cluster with a biological program
 derived from its enriched genes, quantify per-subtype characteristics and draw the figures. Everything that must be
 identical between the per-sample and the pooled analysis lives here: the parameters, the program dictionary and
 label vocabulary, program scoring, the resolution sweep and clustering, cluster diagnostics, differential
@@ -193,7 +196,7 @@ def build_programs(gene_set, programs_raw):
 
 
 def score_programs(adata_tumor_cyto, adata_tumor, programs):
-    """Per-cell program scores on the log-normalized cytoplasmic expression -> z-scored DataFrame (cells x programs).
+    """Per-cell program scores on the log-normalized expression of the compartment -> z-scored DataFrame (cells x programs).
     score_genes has no layer argument, so it runs on a light copy whose X is the lognorm layer (adata_tumor_cyto.X holds
     the regressed and scaled values used for the embedding, which are not suitable). Raw scores are also stored in
     adata_tumor.obs as score_<program>."""
@@ -218,8 +221,9 @@ def top_program(scores_z, label_programs, cluster_labels):
 def resolution_sweep(adata_tumor_cyto, scores_z, label_programs, cfg, paths):
     """Louvain at every resolution of RES_GRID on the stored kNN graph. For each value: number of clusters, smallest
     cluster, and the number of distinct programs that the score criterion alone (mean z > Z_SCORE) resolves. The
-    suggested resolution is the smallest one at which that number stops increasing, i.e. the coarsest clustering
-    that still separates all detectable programs; cfg["res_cyto"] is the reviewed value actually used."""
+    suggested resolution is the smallest one that reaches the largest number of resolved programs over the grid, i.e.
+    the coarsest clustering that separates all detectable programs; it is printed as a starting point only,
+    cfg["res_cyto"] is the reviewed value actually used."""
     sweep = []
     for res in RES_GRID:
         key = f"louvain_{res}"
@@ -277,9 +281,9 @@ def spatial_context(obs_all, obs_tumor, xy=("global_x", "global_y")):
 
 def cluster_statistics(adata_tumor, adata_tumor_cyto, paths):
     """Depth columns, the depth check on the embedding and the per-cluster statistics table.
-    Cytoplasmic depth (full panel) comes from obs["compartment_total_counts"] of the embedded object; the raw
+    The compartment depth (full panel) comes from obs["compartment_total_counts"] of the embedded object; the raw
     target-gene counts are recovered from the log-normalized layer. Spearman(PC1-5, log depth) should stay below 0.3
-    in absolute value (the embedding regressed depth out). The table (clustering/cluster_stats_cytoplasmic.csv)
+    in absolute value (the embedding regressed depth out). The table (clustering/cluster_stats_<COMPARTMENT>.csv)
     feeds the annotation overrides: median target-gene counts (Low depth) and median fibroblast distance (Stroma
     border); it requires the spatial-context columns dist_immune and dist_fibroblast in adata_tumor.obs."""
     depth = adata_tumor_cyto.obs["compartment_total_counts"].values
@@ -352,7 +356,7 @@ def annotate(adata_tumor_cyto, adata_tumor, de_dict, cluster_stats, scores_z, pr
     10 markers), "medium" when only one criterion fires, "review" when the criteria disagree or a Baseline / Low
     depth cluster has 10 or more markers. Reviewed decisions in cfg["manual_labels"] (cluster id -> label) are
     applied last and marked "reviewed".
-    Writes annotation/subtype_annotation_cytoplasmic.csv, sets subtype_label on both objects (categories in
+    Writes annotation/subtype_annotation_<COMPARTMENT>.csv, sets subtype_label on both objects (categories in
     LABEL_ORDER order), prints the table and the top markers per label; returns (annotation, categories)."""
     n_universe = adata_tumor_cyto.shape[1]
     tp = top_program(scores_z, label_programs, adata_tumor_cyto.obs["subtype_louvain"].values)
@@ -469,9 +473,9 @@ CHARACTERISTIC_COLS = ["score_Hypoxia", "hypoxia_ssgsea_cyto", "hypoxia_score_tf
 
 
 def summarize_characteristics(adata_tumor, paths, extra_cell_cols=()):
-    """Per-label summary (median and IQR of CHARACTERISTIC_COLS) -> characteristics/subtype_characteristics_cytoplasmic.csv,
+    """Per-label summary (median and IQR of CHARACTERISTIC_COLS) -> characteristics/subtype_characteristics_<COMPARTMENT>.csv,
     and the per-cell table (scores, distances and proximities, neighbourhood, depth, morphology) ->
-    characteristics/cell_annotations_cytoplasmic.csv. extra_cell_cols: additional obs columns for the per-cell table."""
+    characteristics/cell_annotations_<COMPARTMENT>.csv. extra_cell_cols: additional obs columns for the per-cell table."""
     char_cols = [c for c in CHARACTERISTIC_COLS if c in adata_tumor.obs]
     groups = adata_tumor.obs.groupby("subtype_label", observed=True)
     summary = groups[char_cols].median()

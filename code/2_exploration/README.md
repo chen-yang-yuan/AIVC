@@ -1,8 +1,8 @@
 # Fig. 1 exploration: nuclear vs cytoplasmic expression in tumor cells
 
 Exploratory analysis of the six processed Xenium 5K FFPE samples that motivates AIVC's compartment-level target and
-selects the candidate target gene set. Design, status and decisions: `plans/fig1_exploration.md`. Specification:
-`plans/AIVC Model Design Tracker.md`, section "Next step: exploratory analysis for Fig. 1".
+selects the candidate target gene set. Design, status and decisions: `plans/fig1_exploration.md` (specification in
+its section 3). The stage is complete (full run 2026-09-27).
 
 ## Execution order
 

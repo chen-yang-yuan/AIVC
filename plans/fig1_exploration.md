@@ -1,12 +1,13 @@
 # Fig. 1 Exploration: Nuclear vs Cytoplasmic Expression in Tumor Cells
 
-Last updated: 2026-09-27.
+Last updated: 2026-11-14 (results as of the full run of 2026-09-27).
 
 ## 1. Purpose and scope
 
 - Exploratory analysis of the six processed Xenium 5K FFPE samples (BC, OC, CC, LC, Prostate, Skin), tumor cells
-  only, that motivates AIVC's compartment-level target and selects the candidate target gene set. Specification:
-  `plans/AIVC Model Design Tracker.md`, "Next step: exploratory analysis for Fig. 1".
+  only, that motivates AIVC's compartment-level target and gives a first list of candidate target genes. The
+  working target gene set was selected afterwards, by a different rule and on five samples, in the subtype
+  exploration (634 genes, `plans/subtype_exploration.md`); section 3 below is the specification of this stage.
 - Narrative: (A) the compartments are different; (B) the difference is biology rather than artifact; (C) the
   difference relates to the model's inputs (subtype, morphology, neighborhood).
 - Outputs of the stage: candidate target gene set (or pathway set), the choice among target forms A/B/C, the
@@ -204,7 +205,7 @@ reference) to estimate agreement on LC/Prostate/Skin and non-epithelial contamin
    symmetric with nucleus-only DE) and 15 genes recur in >= 3 samples. This is the strongest "post-transcriptional
    signal" panel (A4) and the best per-gene target source.
 5. The environment adds little to per-gene localisation: beyond subtype, niche or boundary explain >= 0.5% deviance
-   for at most 6 genes per sample; the naive-model conclusion generalises from the SG set to the panel. Where the
+   for at most 6 genes per sample; what was known for the SG marker set holds for the whole panel. Where the
    environment shows, it shows at pathway level (KRAS up, EMT, ER stress, TNFa) and in the cytoplasmic COUNT rather
    than the fraction. Recommendation on target form: primary target = cytoplasmic count (A or C), with the
    compartment split (B) as a secondary readout for the subtype-sensitive genes, and count-aggregated pathway
@@ -217,7 +218,9 @@ reference) to estimate agreement on LC/Prostate/Skin and non-epithelial contamin
 7. Target gene set: the recurrent candidates (6 genes in >= 3 samples, 28 in >= 2) plus the 15 recurrent cyto-only DE
    genes form a first list of ~40 genes; it is dominated by abundant housekeeping-like mRNAs (EEF1G, YWHAZ, H3F3B,
    LDHA), so a pathway-level target remains the recommended primary form for the model, with these genes as the
-   per-gene track.
+   per-gene track. This list was not carried forward as the target set: the subtype exploration selected 634
+   cytoplasm-enriched highly variable genes on five samples (`plans/subtype_exploration.md` section 2), of which 16
+   are among the 43 genes of this list (3 of the 6 recurrent candidates: EEF1G, LDHA, NDRG1).
 
 ## 6. Open items
 
@@ -225,38 +228,31 @@ reference) to estimate agreement on LC/Prostate/Skin and non-epithelial contamin
   QC pass (drop lineage-negative, immune-like and endothelial-like cells, and benign-like clusters); (c) add an
   inferCNV-style copy-number score (gene coordinates from Ensembl, immune/stromal reference) as a label-independent
   malignant call, mainly for Prostate and Skin.
-
-- Run the heavy steps on HGCC for all six datasets and the notebook on the results; fill sections 4-5 with the full
-  numbers and write the interpretation (target form, identity source, gene vs pathway).
-- Decide the Fig. 1 panel selection from the produced figures; the A3b verdict per sample (decision summary) says
-  whether the "cytoplasm-only spatially coherent cluster" panel exists and in which sample.
-- Threshold review after the full run: D_MIN, MEAN_MIN_*, ASSOC_MIN_EXCESS, R_TRUE_DIVERGENT, Jaccard thresholds.
+- Decide the Fig. 1 panel selection from the produced figures (recommendation in 5.3, item 6).
+- Threshold review: D_MIN, MEAN_MIN_*, ASSOC_MIN_EXCESS, R_TRUE_DIVERGENT, Jaccard thresholds.
 - Step 3b uses unscaled log values (as A3 does), so a residual PC can be dominated by one abundant, regionally
-  expressed gene (LC quick: residual PC1 is GRP). If that recurs in the full run, add a gene-scaled residual PCA as a
-  sensitivity analysis.
-- Step 3b quick-mode results (LC, 20k cells): 13 nuclear PCs kept (reliability 0.94/0.88/0.81 for PCs 1-3), EIV
-  correction applied with mean shrink 0.6, residual scores nearly orthogonal to nuclear half 2 (max canonical
-  correlation 0.14, ARI 0.03), noise-control Moran's I 0.00; verdict "no cytoplasmic structure beyond nucleus"
-  (no residual dimension above the leakage floor at half depth on 20k cells). To be re-evaluated on all cells.
+  expressed gene (the residual PC1 genes of 5.1: XBP1, H19, EEF1G, CTSH, S100A1). A gene-scaled residual PCA is the
+  sensitivity analysis if step 3b is taken further.
 
 ## 7. Log
-
-- **2026-09-27** — Full run on all six datasets completed (HGCC heavy steps, local light steps and figures); results
-  in section 5. Headline: compartments differ reproducibly per gene; no cytoplasm-only cluster in any sample under
-  the pre-registered rule (OC has a continuous residual axis, H19); cytoplasm-specific DE across nuclear subtypes is
-  substantial (24-468 genes per sample, 15 recurrent); the environment explains little per-gene localisation and
-  shows mainly at pathway level. Recommendations in 5.3; decisions pending.
-
-- **2026-09-26 (evening)** — Step 0b annotation QC added and run on all six datasets (report only). Finding: the
-  supervised tumor sets (BC, OC, CC) are clean; the manually annotated sets contain benign-like or low-signal
-  clusters inside "Malignant cell" (LC ~20%, Prostate ~28%, Skin ~22% of tumor cells). Harmonisation deferred.
-- **2026-09-26 (later)** — Step 3b added after the question whether cytoplasm-defined clusters had been checked for
-  spatial pattern: the original A3 tests used global permutation nulls and a whole-cluster Jaccard rule, which restate
-  the nuclear subtype and cannot produce the panel when the cytoplasm splits a subtype spatially. The residual design,
-  leakage floor, stratified nulls, tile-bootstrap effects and the eligibility / panel rule above are locked before the
-  HGCC run. The cell-level "discordance" idea was rejected (with ARI ~0.3 most cells are discordant by depth).
 
 - **2026-09-26** — Document created. Design locked as in section 3; implementation in `code/2_exploration/`
   verified on LC and CC in quick mode. Decisions: morphology = segmentation-derived features only; existing
   compartment matrices kept (no QV filter) with the caveat recorded; heavy steps on HGCC, light steps in the
   notebook; positive controls = panel lncRNAs (MEG3, MIAT, PVT1, CRNDE, HOTAIR nuclear; NORAD cytoplasmic).
+- **2026-09-26 (later)** — Step 3b added after the question whether cytoplasm-defined clusters had been checked for
+  spatial pattern: the original A3 tests used global permutation nulls and a whole-cluster Jaccard rule, which restate
+  the nuclear subtype and cannot produce the panel when the cytoplasm splits a subtype spatially. The residual design,
+  leakage floor, stratified nulls, tile-bootstrap effects and the eligibility / panel rule above are locked before the
+  HGCC run. The cell-level "discordance" idea was rejected (with ARI ~0.3 most cells are discordant by depth).
+- **2026-09-26 (evening)** — Step 0b annotation QC added and run on all six datasets (report only). Finding: the
+  supervised tumor sets (BC, OC, CC) are clean; the manually annotated sets contain benign-like or low-signal
+  clusters inside "Malignant cell" (LC ~20%, Prostate ~28%, Skin ~22% of tumor cells). Harmonisation deferred.
+- **2026-09-27** — Full run on all six datasets completed (HGCC heavy steps, local light steps and figures); results
+  in section 5. Headline: compartments differ reproducibly per gene; no cytoplasm-only cluster in any sample under
+  the pre-registered rule (OC has a continuous residual axis, H19); cytoplasm-specific DE across nuclear subtypes is
+  substantial (24-468 genes per sample, 15 recurrent); the environment explains little per-gene localisation and
+  shows mainly at pathway level. Recommendations in 5.3; decisions pending.
+- **2026-11-14** — Document brought up to date in the audit of the exploratory stage: open items that the full
+  run completed removed from section 6; the ~40-gene list of 5.3 marked as superseded by the 634-gene target set
+  of the subtype exploration as the working set; Log put in chronological order. No result changed.

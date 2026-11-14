@@ -1,8 +1,8 @@
 """Embed tumor cells of five Xenium 5K samples on nuclear and cytoplasmic expression of cytoplasm-enriched genes.
 
 Gene set: ../../output/1_exploration/enrichment/overlap_genes_3plus_samples.npy from 1_enrichment.ipynb, i.e. genes
-that are highly variable in >= 2 samples and cytoplasm-enriched in >= 3 of the five samples (~600 genes). Skin
-melanoma is not part of the enrichment analysis and is excluded here as well.
+that are highly variable in >= 2 samples and cytoplasm-enriched in >= 3 of the five samples (634 genes). The exploration is restricted to the five carcinoma
+samples; Skin (melanoma) is excluded.
 
 One work unit = (sample, compartment): load the tumor cells, normalize_total(1e4) on the FULL panel (size factor =
 total transcripts of the compartment, stored in obs["compartment_total_counts"]), subset to the gene set, log1p
@@ -21,9 +21,11 @@ cells with (almost) no target-gene transcripts form a low-depth cluster that the
 
 The 10 units run in parallel as a SLURM array (2_embedding.sh). Per sample the outputs are
     adata_{nuclear,cytoplasmic}_embedded.h5ad      X = regressed + scaled, layers["lognorm"] = log-normalized
+(3_clustering.ipynb reads the cytoplasmic objects; the per-sample nuclear objects are not used by the current
+notebooks, the nuclear analysis runs on the pooled object of 4_pooled_embedding.py).
 
 Parameters (fixed, no sweep):
-    N_PCS = 30         ~600 genes; 20 PCs / 15 neighbors give the same clusters in BC, so the graph is robust to
+    N_PCS = 30         634 genes; 20 PCs / 15 neighbors give the same clusters in BC, so the graph is robust to
                        these choices. After scaling the first N_PCS components explain only ~7% of the variance,
                        which is expected for z-scored sparse data; the value is printed to the log.
     N_NEIGHBORS = 30   depends on the cell number (45k-220k tumor cells per sample): 15 (scanpy default) gives a

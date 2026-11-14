@@ -33,7 +33,8 @@ Procedure (one compartment; functions and parameters imported from 2_embedding.p
      removed with them, so pooled label frequencies are relative within each sample; differences in the
      within-sample covariance structure are not corrected. The uncorrected run stays the reference for the raw
      sample effect.
-   Then PCA(50), t-SNE and kNN / UMAP on the first N_PCS components, identical in both modes.
+   Then PCA(50; arpack solver here, scanpy's default solver in 2_embedding.py), t-SNE and kNN / UMAP on the first N_PCS components,
+   identical in both modes.
 3. Write <output folder>/adata_pooled_<compartment>_embedded.h5ad: X = regressed + scaled, layers["lognorm"],
    obsm X_pca / X_tsne / X_umap, the kNN graph in obsp, uns["embedding_params"] (records mode and compartment).
 
