@@ -1,4 +1,4 @@
-# Tumor stress vs target-gene substates (`code/1_exploration/`)
+# Tumor stress vs target-gene substates (`code/1_exploration/1_cytoplasmic/`)
 
 Current as of 2026-11-14. Design (2026-11-07), first run (2026-11-08), the revised run after the user's review
 (2026-11-08: two gene-list variants and two correspondence approaches as peers, outputs split into
@@ -493,21 +493,21 @@ related to stress" is supported as a counts-plus-localisation effect until the t
 
 ## 8. Implementation (streamlined 2026-11-08)
 
-- `code/1_exploration/stress_utils.py`: axes catalogue (`AXES`, `axis_set`: env / signature / other), reference
+- `code/1_exploration/1_cytoplasmic/stress_utils.py`: axes catalogue (`AXES`, `axis_set`: env / signature / other), reference
   sets, label-based axes (`label_axes`), Gaussian kernels (`kernel_score`, `kernel_axes`), expression axes
   (`expression_axes`, canonical lists), granule axes, pooled groups and blocks; composite stress scores and the
   two stress labellings (`COMPOSITES_ENV`, `COMPOSITES_EXPR`, `composite_scores`, `dominant_archetype`);
   analysis helpers (R2 beyond sample, epsilon2, Cramer's V, AMI incl. from a contingency table, log2 OR pooled /
   Mantel-Haenszel, label-vs-label enrichment with block-bootstrap CIs (`label_correspondence`), ridge
   out-of-fold predictions, within-sample standardisation, Moran's I, Spearman matrices).
-- `code/1_exploration/stress_figures.py`: the figure helpers (spatial maps, boxplots in physical units, stacked
+- `code/1_exploration/1_cytoplasmic/stress_figures.py`: the figure helpers (spatial maps, boxplots in physical units, stacked
   group shares, dot plot without grid, enrichment heatmaps with cell counts, composition bars, forest plot,
   paired bars, Sankey-style alluvial flows between labellings (`alluvial_figure`: matplotlib node bars and
   Bezier ribbons, ribbon width = cells, highlighted ribbons opaque)); substate colours from `subtype_utils.LABEL_COLORS`, a fixed palette for the stress subtypes.
   The "reproducible" flag (|log2 OR or log2 enrichment| > 0.5, block-bootstrap CI excluding 0, same sign in >= 3
   of 5 samples) is a table column and the selection rule of the forest plot; it is no longer drawn as dots on
   the heatmaps.
-- `code/1_exploration/6_stress_substates.ipynb` (local, AIVC-env;
+- `code/1_exploration/1_cytoplasmic/6_stress_substates.ipynb` (local, AIVC-env;
   executed with `jupyter nbconvert --execute --inplace`, about 1 h). The output folder is emptied at the start
   of a run; the per-cell stress table is the one file carried over (`REBUILD = True` recomputes it, about 5 min;
   retired minus-634 columns are dropped from the cache on load). Parts: 1 stress table and per-sample summary;
@@ -608,3 +608,7 @@ related to stress" is supported as a counts-plus-localisation effect until the t
   which had been re-saved by a spreadsheet application on 2026-11-10 (CRLF line ends, truncated precision), was
   regenerated from the notebook code; values unchanged. Document: zero-transcript share corrected (4.7 % of cells
   have no nuclear gene-set transcript), reference to a notebook builder script removed. No result changed.
+- 2026-11-18 (folder layout): `code/1_exploration/` was split into one subfolder per analysis. The scripts of this
+  document are now in `code/1_exploration/1_cytoplasmic/` (names unchanged; `subtype_utils.py` stays one level up
+  and is shared with the NCD analysis; relative paths in the scripts are now `../../../`). No analysis was changed
+  or rerun.

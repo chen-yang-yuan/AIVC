@@ -9,6 +9,10 @@ import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # shared subtype_utils.py
 from subtype_utils import LABEL_COLORS, LABEL_ORDER
 
 SAMPLE_COLORS = {"BC": "#1f77b4", "OC": "#ff7f0e", "CC": "#2ca02c", "LC": "#d62728", "Prostate": "#9467bd"}

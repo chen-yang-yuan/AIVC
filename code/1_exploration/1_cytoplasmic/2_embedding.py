@@ -1,6 +1,6 @@
 """Embed tumor cells of five Xenium 5K samples on nuclear and cytoplasmic expression of cytoplasm-enriched genes.
 
-Gene set: ../../output/1_exploration/enrichment/overlap_genes_3plus_samples.npy from 1_enrichment.ipynb, i.e. genes
+Gene set: ../../../output/1_exploration/enrichment/overlap_genes_3plus_samples.npy from 1_enrichment.ipynb, i.e. genes
 that are highly variable in >= 2 samples and cytoplasm-enriched in >= 3 of the five samples (634 genes). The exploration is restricted to the five carcinoma
 samples; Skin (melanoma) is excluded.
 
@@ -55,7 +55,7 @@ sc.settings.verbosity = 0
 
 SAMPLES = ["Xenium_5K_BC", "Xenium_5K_OC", "Xenium_5K_CC", "Xenium_5K_LC", "Xenium_5K_Prostate"]
 COMPARTMENTS = ["nuclear", "cytoplasmic"]
-GENE_SET_FILE = "../../output/1_exploration/enrichment/overlap_genes_3plus_samples.npy"
+GENE_SET_FILE = "../../../output/1_exploration/enrichment/overlap_genes_3plus_samples.npy"
 N_COMPS_PCA = 50
 N_PCS = 30
 N_NEIGHBORS = 30
@@ -69,7 +69,7 @@ sc.settings.n_jobs = N_JOBS
 
 
 def output_file(sample, label):
-    return f"../../output/1_exploration/{sample}/adata_{label}_embedded.h5ad"
+    return f"../../../output/1_exploration/{sample}/adata_{label}_embedded.h5ad"
 
 
 def load_gene_set():
@@ -79,8 +79,8 @@ def load_gene_set():
 
 
 def load_tumor(sample):
-    intermediate_path = f"../../data/{sample}/intermediate_data/"
-    processed_path = f"../../data/{sample}/processed_data/"
+    intermediate_path = f"../../../data/{sample}/intermediate_data/"
+    processed_path = f"../../../data/{sample}/processed_data/"
     adata_all = sc.read_h5ad(intermediate_path + "adata.h5ad")
     cell_ids = np.load(processed_path + "cell_ids.npy", allow_pickle=True)
     assert adata_all.shape[0] > cell_ids.shape[0], "cell_ids should be a subset of adata.obs_names"
@@ -103,7 +103,7 @@ def regress_out_covariate(X, covariate):
 
 
 def build_compartment(adata_tumor, sample, label, genes, tag):
-    processed_path = f"../../data/{sample}/processed_data/"
+    processed_path = f"../../../data/{sample}/processed_data/"
     compartment_expression = sparse.load_npz(processed_path + f"{label}_expression_matrix.npz")
     assert compartment_expression.shape[0] == adata_tumor.shape[0], \
         "compartment_expression should have the same number of cells as adata_tumor"
@@ -143,7 +143,7 @@ def run_task(sample, label, force=False):
     if os.path.exists(out) and not force:
         print(f"{tag} output exists, skipping", flush=True)
         return
-    os.makedirs(f"../../output/1_exploration/{sample}/", exist_ok=True)
+    os.makedirs(f"../../../output/1_exploration/{sample}/", exist_ok=True)
     genes = load_gene_set()
 
     t0 = time.time()

@@ -7,6 +7,7 @@
 .PHONY: push status log check-branch \
         data-push-Xenium data-push out-pull data-push-dry out-pull-dry \
         enrich-push enrich-push-dry \
+        ncd-push ncd-push-dry ncd-pull ncd-pull-dry \
         env-check env-create env-update env-recreate
 
 # ----------------------------
@@ -101,6 +102,37 @@ enrich-push-dry:
 	rsync $(RSYNC_FAST) --dry-run \
 	  "$(LOCAL_OUT)/$(ENRICH_SUBDIR)"/ \
 	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(ENRICH_SUBDIR)"/
+
+# NCD ratio analysis, step 4 (code/1_exploration/2_ncd_ratio/4_embedding.sh).
+# ncd-push: the gene lists the HGCC job needs (outputs of steps 1 and 3) -> HGCC.
+# ncd-pull: the results of the job, output/1_exploration/ncd_ratio/4_embedding/ -> local (local files that are
+#           newer than the HGCC copy are kept).
+NCD_SUBDIR := 1_exploration/ncd_ratio
+NCD_PUSH_FILTER := --include='/1_filter/' --include='/1_filter/filtered_genes.npy' \
+                   --include='/3_audit/' --include='/3_audit/target_genes.npy' \
+                   --include='/3_audit/target_genes_union.npy' --exclude='*'
+ncd-push:
+	@ssh $(HGCC_USER)@$(HGCC_HOST) "mkdir -p '$(REMOTE_OUT)/$(NCD_SUBDIR)'"
+	rsync $(RSYNC_FAST) $(NCD_PUSH_FILTER) \
+	  "$(LOCAL_OUT)/$(NCD_SUBDIR)"/ \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(NCD_SUBDIR)"/
+
+ncd-push-dry:
+	rsync $(RSYNC_FAST) --dry-run $(NCD_PUSH_FILTER) \
+	  "$(LOCAL_OUT)/$(NCD_SUBDIR)"/ \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(NCD_SUBDIR)"/
+
+ncd-pull:
+	@mkdir -p "$(LOCAL_OUT)/$(NCD_SUBDIR)/4_embedding"
+	rsync $(RSYNC_PULL) \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(NCD_SUBDIR)/4_embedding"/ \
+	  "$(LOCAL_OUT)/$(NCD_SUBDIR)/4_embedding"/
+
+ncd-pull-dry:
+	@mkdir -p "$(LOCAL_OUT)/$(NCD_SUBDIR)/4_embedding"
+	rsync $(RSYNC_PULL) --dry-run \
+	  $(HGCC_USER)@$(HGCC_HOST):"$(REMOTE_OUT)/$(NCD_SUBDIR)/4_embedding"/ \
+	  "$(LOCAL_OUT)/$(NCD_SUBDIR)/4_embedding"/
 
 # Pull granule_adata.h5ad from HGCC -> local data
 pull_granule_data:

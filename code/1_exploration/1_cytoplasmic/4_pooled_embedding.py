@@ -68,8 +68,8 @@ emb = importlib.import_module("2_embedding")   # per-sample embedding: same func
 
 SAMPLES = emb.SAMPLES
 COMPARTMENTS = emb.COMPARTMENTS   # ["nuclear", "cytoplasmic"]
-OUTPUT_DIRS = {"none": "../../output/1_exploration/pooled/",
-               "sample": "../../output/1_exploration/pooled_sample_corrected/"}
+OUTPUT_DIRS = {"none": "../../../output/1_exploration/pooled/",
+               "sample": "../../../output/1_exploration/pooled_sample_corrected/"}
 
 
 def output_dir(correction, compartment):
@@ -94,7 +94,7 @@ def load_sample_lognorm(sample, genes, correction="none", compartment="cytoplasm
     tag = f"[{sample} {compartment}]"
     t0 = time.time()
     adata_tumor = emb.load_tumor(sample)
-    processed_path = f"../../data/{sample}/processed_data/"
+    processed_path = f"../../../data/{sample}/processed_data/"
     compartment_expression = sparse.load_npz(processed_path + f"{compartment}_expression_matrix.npz")
     assert compartment_expression.shape[0] == adata_tumor.shape[0], \
         "compartment_expression should have the same number of cells as adata_tumor"

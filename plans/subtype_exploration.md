@@ -1,4 +1,4 @@
-# Tumor-cell subtype exploration (`code/1_exploration/`)
+# Tumor-cell subtype exploration (`code/1_exploration/1_cytoplasmic/`)
 
 Current as of 2026-11-14. Summarises the per-sample, uncorrected pooled and sample-corrected pooled (cytoplasmic and
 nuclear) subtyping of the tumor cells of five Xenium 5K samples, answers the two extension questions (are the
@@ -409,14 +409,15 @@ and myeloid-adjacent cells; the matched-control discipline of the Fig. 1 explora
 
 ## 9. Code, outputs and re-run rules
 
-Run order in `code/1_exploration/` (notebooks locally in `AIVC-env` from that folder; `.py` + `.sh` on HGCC, then
-`make out-pull`): `1_enrichment.ipynb` -> `2_embedding.py` -> `3_clustering.ipynb` -> `4_pooled_embedding.py` (three
-variants: `--correction none`, `--correction sample`, `--correction sample --compartment nuclear`) -> `4_pooled.ipynb`,
+Run order in `code/1_exploration/1_cytoplasmic/` (the shared `subtype_utils.py` is one level up; notebooks
+locally in `AIVC-env` from that folder; `.py` + `.sh` on HGCC, then `make out-pull`): `1_enrichment.ipynb` ->
+`2_embedding.py` -> `3_clustering.ipynb` -> `4_pooled_embedding.py` (three variants: `--correction none`,
+`--correction sample`, `--correction sample --compartment nuclear`) -> `4_pooled.ipynb`,
 `4_pooled_sample_corrected.ipynb`, `4_pooled_sample_corrected_nuclear.ipynb` (in this order: the nuclear notebook
 reads the tables of the sample-corrected cytoplasmic run, and all three read the per-sample tables of
-`3_clustering.ipynb`) -> `5_target_gene_sensitivity.ipynb` (independent) -> `6_stress_substates.ipynb` (reads the two
-sample-corrected pooled objects). `old/` is the archive of the superseded first design (full panel, six samples,
-parameter grid) and is not part of the pipeline.
+`3_clustering.ipynb`) -> `5_target_gene_sensitivity.ipynb` (independent) -> `6_stress_substates.ipynb` (reads the
+two sample-corrected pooled objects). `code/1_exploration/old/` is the archive of the superseded first design
+(full panel, six samples, parameter grid) and is not part of the pipeline.
 
 | Folder in `output/1_exploration/` | Content | Written by | On re-run |
 |---|---|---|---|
@@ -460,3 +461,7 @@ ids and labels exactly (checked on every re-run, last 2026-11-14), so the review
   restricted to where the tables support them); section 9 added. Skin is excluded as a melanoma. Stale comments
   and unused code removed from the scripts; `code/1_exploration/old/` marked as archive. No analysis choice and no
   conclusion changed.
+- 2026-11-18 (folder layout): `code/1_exploration/` was split into one subfolder per analysis. The scripts of this
+  document are now in `code/1_exploration/1_cytoplasmic/` (names unchanged; `subtype_utils.py` stays one level up
+  and is shared with the NCD analysis; relative paths in the scripts are now `../../../`). No analysis was changed
+  or rerun.

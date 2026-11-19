@@ -2,6 +2,10 @@
 4_pooled.ipynb, 4_pooled_sample_corrected.ipynb and 4_pooled_sample_corrected_nuclear.ipynb. stress_figures.py
 reuses the label vocabulary and colours.
 
+Location: this file is in code/1_exploration/ and is shared by the two analyses in its subfolders. The notebooks
+above and stress_figures.py are in 1_cytoplasmic/; 2_ncd_ratio/ uses the program dictionary (CURATED_PROGRAMS) and
+the GMT reader (read_gmt). Users add the parent folder to the import path first (sys.path.insert(0, "..")).
+
 The notebooks cluster tumor cells on the depth-corrected expression of the 634 cytoplasm-enriched genes in one
 compartment (cytoplasmic, or nuclear in the nuclear pooled notebook; see COMPARTMENT; embedding from 2_embedding.py /
 4_pooled_embedding.py on HGCC), annotate every cluster with a biological program

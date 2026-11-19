@@ -114,8 +114,22 @@ every cell and carries most of the granule-associated signal. This feeds the out
   Skin 10). Any per-dataset code that derives a cell-type vocabulary from `.cat.categories` will misalign columns
   across datasets; use a hard-coded union (`CELL_TYPES_18` in `code/2_exploration/config.py`; `known_types` in
   `code/1_exploration/subtype_utils.py`).
-- `nucleus_area` is NaN for cells segmented without a nucleus (1.5-8% of tumor cells); such cells have a
-  degenerate nuclear/cytoplasmic split.
+- `nucleus_area` is NaN for cells segmented without a nucleus (1.5-8% of tumor cells; in the five carcinoma
+  samples BC 4.6 %, OC 2.7 %, CC 4.0 %, LC 3.5 %, Prostate 8.2 %); such cells have a degenerate
+  nuclear/cytoplasmic split: every transcript is cytoplasmic and the nuclear count is 0 for every gene. The NCD
+  ratio analysis removes every tumor cell with zero nuclear transcripts at loading (these cells plus 137 with an
+  empty small nucleus; `ncd_ratio_utils.load_counts`); the matrices themselves are unchanged and the earlier
+  stages used all tumor cells.
+- "Nuclear" is the 2D outline of the nucleus (10x flag `overlaps_nucleus`); depth is ignored, so cytoplasm above
+  and below the nucleus counts as nuclear. Per tumor cell the nuclear share of the counts follows the nucleus
+  share of the cell area (correlation 0.81 to 0.89 by sample).
+- The compartment matrices of the five carcinoma samples were rebuilt from `raw_data/transcripts.parquet` on
+  2026-11-18 (`code/1_exploration/2_ncd_ratio/check_upstream.py`): identical in every entry; with Q20 the sum
+  of the two matrices equals `adata.X`. 10 to 17 % of the tumor-cell transcripts are below Q20, equally in both
+  compartments. Details: `plans/ncd_ratio_exploration.md` §10.8.
+- `data/_utils/gene_biotype.csv` (2026-11-18): Ensembl biotype of the 5001 panel genes (release 116, through
+  mygene.info; `code/1_exploration/2_ncd_ratio/gene_biotype.py`). 4972 are protein-coding; 26 long non-coding RNAs,
+  IGHE, TRDC and CBSL are not. The NCD ratio analysis uses the protein-coding genes only; earlier stages used all.
 - The compartment matrices are built from all decoded transcripts: `1_clean` drops the raw `qv` column, so the
   QV >= 20 filter that 10x applies to `cell_feature_matrix.h5` is not applied to `nuclear/cytoplasmic_expression_matrix`.
   Nuclear + cytoplasmic therefore does not equal the `X` counts. Decision 2026-09-26: keep the matrices as they are
@@ -133,7 +147,7 @@ it are complete, see `plans/subtype_exploration.md` and `plans/stress_substate_e
 2. Revise `code/2_outcome/` accordingly; if granule construction is dropped, demote `3_detection` and
    `4_ssGSEA_SG` and make compartment-level outcomes the primary product.
 3. Clean up the known issues above once the outcome pipeline is settled.
-4. Move the stress axes of the exploration (`code/1_exploration/stress_utils.py`, 28 axes) into `code/2_outcome/`
+4. Move the stress axes of the exploration (`code/1_exploration/1_cytoplasmic/stress_utils.py`, 28 axes) into `code/2_outcome/`
    if they are adopted; monotonic and oscillatory stress remain undefined.
 5. Ingest the Linghua and NC-paper datasets; settle the gene-panel strategy across panels.
 
@@ -150,3 +164,6 @@ it are complete, see `plans/subtype_exploration.md` and `plans/stress_substate_e
   Hallmark GMT; BC ssGSEA parquets hold 106 columns, the other five 31), the legacy Hallmark GMT listed, the dead
   cell-type-vocabulary pointer replaced, section 6 updated for the completed stress analysis, Log put in date
   order. No pipeline changes.
+- **2026-11-18** — Compartment matrices audited against the raw transcripts for the five carcinoma samples
+  (identical; Q20 sum equals `adata.X`). Known issues extended: share of tumor cells without a nucleus per
+  sample, the 2D nucleus outline, the measured share of transcripts below Q20. No pipeline changes.

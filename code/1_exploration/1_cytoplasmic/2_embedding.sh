@@ -28,7 +28,7 @@ module load miniconda3
 eval "$(conda shell.bash hook)"
 conda activate preprocessing-env
 
-cd ~/hulab/projects/AIVC/code/1_exploration
+cd ~/hulab/projects/AIVC/code/1_exploration/1_cytoplasmic
 mkdir -p logs
 
 echo "Host: $(hostname)"
